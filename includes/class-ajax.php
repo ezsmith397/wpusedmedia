@@ -22,7 +22,7 @@ class Ajax {
 	 * Register hooks.
 	 */
 	public function hooks() {
-		add_action( 'wp_ajax_ump_rebuild_index', array( $this, 'rebuild_index' ) );
+		add_action( 'wp_ajax_umedia_rebuild_index', array( $this, 'rebuild_index' ) );
 	}
 
 	/**
@@ -33,17 +33,17 @@ class Ajax {
 		if ( ! current_user_can( 'upload_files' ) ) {
 			wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
 		}
-		check_ajax_referer( 'ump_rebuild', 'nonce' );
+		check_ajax_referer( 'umedia_rebuild', 'nonce' );
 
 		$registry = Plugin::instance()->registry;
 		$adapters = array_values( $registry->all() );
 		$per_page = max( 5, (int) Settings::get( 'batch_size', 40 ) );
 		$step     = isset( $_POST['step'] ) ? sanitize_key( wp_unslash( $_POST['step'] ) ) : 'continue';
-		$state    = get_option( 'ump_rebuild_state' );
+		$state    = get_option( 'umedia_rebuild_state' );
 
 		if ( 'start' === $step || ! is_array( $state ) ) {
 			Usage_Index::truncate();
-			update_option( 'ump_index_built', 0 );
+			update_option( 'umedia_index_built', 0 );
 
 			$total = 0;
 			foreach ( $adapters as $adapter ) {
@@ -93,7 +93,7 @@ class Ajax {
 		if ( $done ) {
 			$this->finish();
 		} else {
-			update_option( 'ump_rebuild_state', $state, false );
+			update_option( 'umedia_rebuild_state', $state, false );
 		}
 
 		wp_send_json_success(
@@ -109,8 +109,8 @@ class Ajax {
 	 * Mark the index complete and clear transient rebuild state.
 	 */
 	private function finish() {
-		update_option( 'ump_index_built', 1 );
-		update_option( 'ump_index_last_built', current_time( 'mysql' ) );
-		delete_option( 'ump_rebuild_state' );
+		update_option( 'umedia_index_built', 1 );
+		update_option( 'umedia_index_last_built', current_time( 'mysql' ) );
+		delete_option( 'umedia_rebuild_state' );
 	}
 }

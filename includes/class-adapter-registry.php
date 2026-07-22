@@ -31,7 +31,7 @@ class Adapter_Registry {
 
 		// Phase 2 registers the Bricks adapter here. Third parties can add
 		// adapters (ACF, WooCommerce, ...) via this filter.
-		$adapters = apply_filters( 'ump_source_adapters', $this->adapters, $this );
+		$adapters = apply_filters( 'umedia_source_adapters', $this->adapters, $this );
 		if ( is_array( $adapters ) ) {
 			$this->adapters = $adapters;
 		}

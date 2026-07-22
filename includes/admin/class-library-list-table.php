@@ -104,7 +104,8 @@ class Library_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	private function current_usage_filter() {
-		$usage = isset( $_GET['usage'] ) ? sanitize_key( wp_unslash( $_GET['usage'] ) ) : 'all';
+		// Read-only display filter from the list-table URL; no state change, so no nonce.
+		$usage = isset( $_GET['usage'] ) ? sanitize_key( wp_unslash( $_GET['usage'] ) ) : 'all'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		return in_array( $usage, array( 'all', 'used', 'unused' ), true ) ? $usage : 'all';
 	}
 
@@ -115,6 +116,8 @@ class Library_List_Table extends WP_List_Table {
 		$per_page = 30;
 		$paged    = $this->get_pagenum();
 
+		// Read-only sort/search args from the list-table URL; no state change, so no nonce.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		$orderby = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : 'date';
 		$order   = ( isset( $_GET['order'] ) && 'asc' === strtolower( sanitize_key( wp_unslash( $_GET['order'] ) ) ) ) ? 'ASC' : 'DESC';
 		$orderby = in_array( $orderby, array( 'title', 'date' ), true ) ? $orderby : 'date';
@@ -131,11 +134,12 @@ class Library_List_Table extends WP_List_Table {
 		if ( ! empty( $_REQUEST['s'] ) ) {
 			$args['s'] = sanitize_text_field( wp_unslash( $_REQUEST['s'] ) );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$usage = $this->current_usage_filter();
 		if ( 'used' === $usage ) {
-			$ids                = Usage_Index::used_attachment_ids();
-			$args['post__in']   = ! empty( $ids ) ? $ids : array( 0 );
+			$ids              = Usage_Index::used_attachment_ids();
+			$args['post__in'] = ! empty( $ids ) ? $ids : array( 0 );
 		} elseif ( 'unused' === $usage ) {
 			$ids = Usage_Index::used_attachment_ids();
 			if ( ! empty( $ids ) ) {
@@ -225,10 +229,10 @@ class Library_List_Table extends WP_List_Table {
 			if ( '' === $title ) {
 				$title = '#' . (int) $object->object_id;
 			}
-			$edit  = get_edit_post_link( $object->object_id );
-			$label = esc_html( $title ) . ' <span class="ump-ctx">(' . esc_html( $object->context ) . ')</span>';
+			$edit    = get_edit_post_link( $object->object_id );
+			$label   = esc_html( $title ) . ' <span class="ump-ctx">(' . esc_html( $object->context ) . ')</span>';
 			$links[] = $edit ? '<a href="' . esc_url( $edit ) . '">' . $label . '</a>' : $label;
-			$shown++;
+			++$shown;
 		}
 
 		return '<strong class="ump-count">' . (int) $count . '</strong>'
@@ -270,7 +274,8 @@ class Library_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	public function column_mime( $item ) {
-		return esc_html( get_post_mime_type( $item->ID ) ?: '&mdash;' );
+		$mime = get_post_mime_type( $item->ID );
+		return $mime ? esc_html( $mime ) : '&mdash;';
 	}
 
 	/**

@@ -12,9 +12,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Read/write access to the ump_usage table.
+ * Read/write access to the umedia_usage table.
  */
 class Usage_Index {
+	/*
+	 * This class only ever touches its own custom table. Table names come from
+	 * $wpdb->prefix (trusted, never user input), and reads are intentionally
+	 * uncached because they must reflect edits made moments earlier by a scan.
+	 * The corresponding DB sniffs are therefore disabled for this file.
+	 */
+	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 
 	/**
 	 * Fully-qualified table name.
@@ -23,7 +32,7 @@ class Usage_Index {
 	 */
 	public static function table() {
 		global $wpdb;
-		return $wpdb->prefix . 'ump_usage';
+		return $wpdb->prefix . 'umedia_usage';
 	}
 
 	/**
@@ -32,7 +41,7 @@ class Usage_Index {
 	 * @return bool
 	 */
 	public static function is_built() {
-		return (bool) get_option( 'ump_index_built', 0 );
+		return (bool) get_option( 'umedia_index_built', 0 );
 	}
 
 	/**
@@ -41,7 +50,7 @@ class Usage_Index {
 	 * @return string
 	 */
 	public static function last_built() {
-		return (string) get_option( 'ump_index_last_built', '' );
+		return (string) get_option( 'umedia_index_last_built', '' );
 	}
 
 	/**

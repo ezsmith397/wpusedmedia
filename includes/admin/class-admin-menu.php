@@ -57,14 +57,14 @@ class Admin_Menu {
 			return;
 		}
 
-		wp_enqueue_style( 'ump-admin', UMP_URL . 'assets/admin.css', array(), UMP_VERSION );
-		wp_enqueue_script( 'ump-admin', UMP_URL . 'assets/admin.js', array( 'jquery' ), UMP_VERSION, true );
+		wp_enqueue_style( 'ump-admin', UMEDIA_URL . 'assets/admin.css', array(), UMEDIA_VERSION );
+		wp_enqueue_script( 'ump-admin', UMEDIA_URL . 'assets/admin.js', array( 'jquery' ), UMEDIA_VERSION, true );
 		wp_localize_script(
 			'ump-admin',
 			'UMP',
 			array(
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'ump_rebuild' ),
+				'nonce'   => wp_create_nonce( 'umedia_rebuild' ),
 			)
 		);
 	}
@@ -77,7 +77,8 @@ class Admin_Menu {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'used-media-pro' ) );
 		}
 
-		$tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'library';
+		// Read-only tab selector from the page URL; navigation only, so no nonce.
+		$tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'library'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$tabs = array(
 			'library'  => __( 'Library', 'used-media-pro' ),
 			'settings' => __( 'Settings', 'used-media-pro' ),
@@ -123,12 +124,15 @@ class Admin_Menu {
 
 		echo '<form method="get">';
 		echo '<input type="hidden" name="page" value="used-media-pro" />';
+		// Preserve current tab/usage in the search form; read-only nav args, so no nonce.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['tab'] ) ) {
 			echo '<input type="hidden" name="tab" value="' . esc_attr( sanitize_key( wp_unslash( $_GET['tab'] ) ) ) . '" />';
 		}
 		if ( isset( $_GET['usage'] ) ) {
 			echo '<input type="hidden" name="usage" value="' . esc_attr( sanitize_key( wp_unslash( $_GET['usage'] ) ) ) . '" />';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		$table->views();
 		$table->search_box( __( 'Search media', 'used-media-pro' ), 'ump-media-search' );
 		$table->display();

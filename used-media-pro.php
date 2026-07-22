@@ -18,10 +18,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'UMP_VERSION', '0.1.0' );
-define( 'UMP_FILE', __FILE__ );
-define( 'UMP_PATH', plugin_dir_path( __FILE__ ) );
-define( 'UMP_URL', plugin_dir_url( __FILE__ ) );
+define( 'UMEDIA_VERSION', '0.1.0' );
+define( 'UMEDIA_FILE', __FILE__ );
+define( 'UMEDIA_PATH', plugin_dir_path( __FILE__ ) );
+define( 'UMEDIA_URL', plugin_dir_url( __FILE__ ) );
 
 /**
  * Lightweight PSR-4-ish autoloader for the UsedMediaPro namespace.
@@ -30,15 +30,15 @@ define( 'UMP_URL', plugin_dir_url( __FILE__ ) );
  * UsedMediaPro\Some_Iface   ->  includes/interface-some-iface.php (fallback)
  */
 spl_autoload_register(
-	function ( $class ) {
+	function ( $class_name ) {
 		$prefix = 'UsedMediaPro\\';
-		if ( 0 !== strpos( $class, $prefix ) ) {
+		if ( 0 !== strpos( $class_name, $prefix ) ) {
 			return;
 		}
-		$relative = substr( $class, strlen( $prefix ) );
+		$relative = substr( $class_name, strlen( $prefix ) );
 		$parts    = explode( '\\', $relative );
 		$name     = array_pop( $parts );
-		$dir      = UMP_PATH . 'includes/';
+		$dir      = UMEDIA_PATH . 'includes/';
 		foreach ( $parts as $segment ) {
 			$dir .= strtolower( $segment ) . '/';
 		}

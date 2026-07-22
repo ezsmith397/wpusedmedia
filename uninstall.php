@@ -11,16 +11,16 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 global $wpdb;
 
-$table = $wpdb->prefix . 'ump_usage';
-$wpdb->query( "DROP TABLE IF EXISTS {$table}" ); // phpcs:ignore WordPress.DB
+$umedia_table = $wpdb->prefix . 'umedia_usage';
+$wpdb->query( "DROP TABLE IF EXISTS {$umedia_table}" ); // phpcs:ignore WordPress.DB
 
-$options = array(
-	'ump_settings',
-	'ump_db_version',
-	'ump_index_built',
-	'ump_index_last_built',
-	'ump_rebuild_state',
+$umedia_options = array(
+	'umedia_settings',
+	'umedia_db_version',
+	'umedia_index_built',
+	'umedia_index_last_built',
+	'umedia_rebuild_state',
 );
-foreach ( $options as $option ) {
-	delete_option( $option );
+foreach ( $umedia_options as $umedia_option ) {
+	delete_option( $umedia_option );
 }

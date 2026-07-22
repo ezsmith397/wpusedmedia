@@ -29,7 +29,7 @@ class Activator {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
 		$charset_collate = $wpdb->get_charset_collate();
-		$usage           = $wpdb->prefix . 'ump_usage';
+		$usage           = $wpdb->prefix . 'umedia_usage';
 
 		$sql = "CREATE TABLE {$usage} (
 			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -45,6 +45,6 @@ class Activator {
 
 		dbDelta( $sql );
 
-		update_option( 'ump_db_version', self::DB_VERSION );
+		update_option( 'umedia_db_version', self::DB_VERSION );
 	}
 }

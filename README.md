@@ -50,6 +50,18 @@ git clone https://github.com/ezsmith397/wpusedmedia.git wp-content/plugins/used-
 
 Then go to **Media → Used Media** and click **Build index**.
 
+## Development
+
+Coding standards are enforced with [WordPress Coding Standards](https://github.com/WordPress/WordPress-Coding-Standards) via PHP_CodeSniffer:
+
+```bash
+composer install     # install dev tooling (PHPCS + WPCS)
+composer lint        # check against the WordPress standard (phpcs.xml.dist)
+composer lint:fix    # auto-fix what can be fixed (phpcbf)
+```
+
+The ruleset lives in `phpcs.xml.dist` (prefix `umedia` / `UsedMediaPro`, text domain `used-media-pro`, PHP 7.4+, WP 6.0+).
+
 ## Requirements
 
 - WordPress 6.0+

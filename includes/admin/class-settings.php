@@ -20,7 +20,7 @@ class Settings {
 	/**
 	 * Option key.
 	 */
-	const OPTION = 'ump_settings';
+	const OPTION = 'umedia_settings';
 
 	/**
 	 * All settings, merged with defaults.
@@ -40,21 +40,21 @@ class Settings {
 	/**
 	 * Fetch a single setting.
 	 *
-	 * @param string $key     Setting key.
-	 * @param mixed  $default Fallback.
+	 * @param string $key      Setting key.
+	 * @param mixed  $fallback Value to return when the key is absent.
 	 * @return mixed
 	 */
-	public static function get( $key, $default = null ) {
+	public static function get( $key, $fallback = null ) {
 		$all = self::all();
-		return array_key_exists( $key, $all ) ? $all[ $key ] : $default;
+		return array_key_exists( $key, $all ) ? $all[ $key ] : $fallback;
 	}
 
 	/**
 	 * Render (and handle submission of) the settings tab.
 	 */
 	public static function render() {
-		if ( isset( $_POST['ump_settings_submit'] ) ) {
-			check_admin_referer( 'ump_save_settings' );
+		if ( isset( $_POST['umedia_settings_submit'] ) ) {
+			check_admin_referer( 'umedia_save_settings' );
 			self::handle_save();
 			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'used-media-pro' ) . '</p></div>';
 		}
@@ -63,14 +63,14 @@ class Settings {
 		$domains  = implode( "\n", (array) $settings['trusted_domains'] );
 		?>
 		<form method="post">
-			<?php wp_nonce_field( 'ump_save_settings' ); ?>
+			<?php wp_nonce_field( 'umedia_save_settings' ); ?>
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row">
-						<label for="ump_trusted_domains"><?php esc_html_e( 'Trusted domains', 'used-media-pro' ); ?></label>
+						<label for="umedia_trusted_domains"><?php esc_html_e( 'Trusted domains', 'used-media-pro' ); ?></label>
 					</th>
 					<td>
-						<textarea name="ump_trusted_domains" id="ump_trusted_domains" rows="5" class="large-text code" placeholder="cdn.example.com"><?php echo esc_textarea( $domains ); ?></textarea>
+						<textarea name="umedia_trusted_domains" id="umedia_trusted_domains" rows="5" class="large-text code" placeholder="cdn.example.com"><?php echo esc_textarea( $domains ); ?></textarea>
 						<p class="description">
 							<?php esc_html_e( 'One host per line. Images served from these hosts count as local (e.g. your CDN), so they are not flagged as external. Your own site domain is always trusted.', 'used-media-pro' ); ?>
 						</p>
@@ -78,15 +78,15 @@ class Settings {
 				</tr>
 				<tr>
 					<th scope="row">
-						<label for="ump_batch_size"><?php esc_html_e( 'Scan batch size', 'used-media-pro' ); ?></label>
+						<label for="umedia_batch_size"><?php esc_html_e( 'Scan batch size', 'used-media-pro' ); ?></label>
 					</th>
 					<td>
-						<input type="number" min="5" max="500" name="ump_batch_size" id="ump_batch_size" value="<?php echo esc_attr( (int) $settings['batch_size'] ); ?>" class="small-text" />
+						<input type="number" min="5" max="500" name="umedia_batch_size" id="umedia_batch_size" value="<?php echo esc_attr( (int) $settings['batch_size'] ); ?>" class="small-text" />
 						<p class="description"><?php esc_html_e( 'Objects processed per background request. Lower this if scans hit timeouts on a slow host.', 'used-media-pro' ); ?></p>
 					</td>
 				</tr>
 			</table>
-			<?php submit_button( __( 'Save settings', 'used-media-pro' ), 'primary', 'ump_settings_submit' ); ?>
+			<?php submit_button( __( 'Save settings', 'used-media-pro' ), 'primary', 'umedia_settings_submit' ); ?>
 		</form>
 		<?php
 	}
@@ -95,9 +95,13 @@ class Settings {
 	 * Sanitize and persist submitted settings.
 	 */
 	private static function handle_save() {
-		$raw_domains = isset( $_POST['ump_trusted_domains'] ) ? wp_unslash( $_POST['ump_trusted_domains'] ) : '';
+		check_admin_referer( 'umedia_save_settings' );
+
+		$raw_domains = isset( $_POST['umedia_trusted_domains'] )
+			? sanitize_textarea_field( wp_unslash( $_POST['umedia_trusted_domains'] ) )
+			: '';
 		$domains     = array();
-		foreach ( preg_split( '/[\r\n]+/', (string) $raw_domains ) as $line ) {
+		foreach ( preg_split( '/[\r\n]+/', $raw_domains ) as $line ) {
 			$line = trim( $line );
 			if ( '' === $line ) {
 				continue;
@@ -111,7 +115,7 @@ class Settings {
 			}
 		}
 
-		$batch = isset( $_POST['ump_batch_size'] ) ? (int) $_POST['ump_batch_size'] : 40;
+		$batch = isset( $_POST['umedia_batch_size'] ) ? absint( wp_unslash( $_POST['umedia_batch_size'] ) ) : 40;
 		$batch = max( 5, min( 500, $batch ) );
 
 		update_option(

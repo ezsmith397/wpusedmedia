@@ -4,7 +4,7 @@
 
 	function post( step ) {
 		return $.post( UMP.ajaxUrl, {
-			action: 'ump_rebuild_index',
+			action: 'umedia_rebuild_index',
 			nonce: UMP.nonce,
 			step: step
 		} );

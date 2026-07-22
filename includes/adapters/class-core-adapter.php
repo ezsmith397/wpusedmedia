@@ -56,7 +56,7 @@ class Core_Adapter implements Source_Adapter {
 		 *
 		 * @param string[] $types Post type slugs.
 		 */
-		$types = apply_filters( 'ump_core_scanned_post_types', array_values( $types ) );
+		$types = apply_filters( 'umedia_core_scanned_post_types', array_values( $types ) );
 
 		$statuses = array( 'publish', 'draft', 'pending', 'private', 'future', 'inherit' );
 
@@ -82,7 +82,11 @@ class Core_Adapter implements Source_Adapter {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Scan one batch of objects for media references.
+	 *
+	 * @param int $page     Zero-based batch index.
+	 * @param int $per_page Objects per batch.
+	 * @return array Reference rows plus scanned count and done flag.
 	 */
 	public function scan_references( $page, $per_page ) {
 		global $wpdb;
@@ -229,9 +233,13 @@ class Core_Adapter implements Source_Adapter {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Scan one batch of objects for external image URLs.
 	 *
 	 * Phase 4 — external scanning is not wired into the UI yet.
+	 *
+	 * @param int $page     Zero-based batch index.
+	 * @param int $per_page Objects per batch.
+	 * @return array External-URL rows plus scanned count and done flag.
 	 */
 	public function scan_external( $page, $per_page ) {
 		return array(
@@ -242,9 +250,14 @@ class Core_Adapter implements Source_Adapter {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Replace an external URL with a locally imported attachment.
 	 *
-	 * Phase 4 — replacement is implemented alongside the external-image feature.
+	 * Phase 4 — implemented alongside the external-image feature.
+	 *
+	 * @param int    $object_id         Object holding the reference.
+	 * @param string $old_url           External URL to replace.
+	 * @param int    $new_attachment_id Imported local attachment id.
+	 * @return bool
 	 */
 	public function replace( $object_id, $old_url, $new_attachment_id ) {
 		return false;

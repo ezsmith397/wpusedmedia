@@ -25,7 +25,7 @@ Third parties (and future modules) register adapters via the `ump_source_adapter
 | Adapter | Status | Covers |
 | --- | --- | --- |
 | `core_content` | ✅ Phase 1 | classic + block editor content, featured images, reusable blocks, FSE templates |
-| `bricks` | 🔜 Phase 2 | Bricks Builder JSON in postmeta |
+| `bricks` | ✅ Phase 2 | Bricks Builder layout data (`_bricks_page_content_*` postmeta) — image elements, backgrounds, logos, galleries |
 
 ## Roadmap
 
@@ -33,7 +33,7 @@ Third parties (and future modules) register adapters via the `ump_source_adapter
 | --- | --- |
 | 0 | Scaffold, menu, settings, adapter registry ✅ |
 | 1 | Core adapter + usage index + enhanced list view with "Used in" ✅ |
-| 2 | Bricks adapter feeding the same index; grid view |
+| 2 | Bricks adapter feeding the same index ✅ |
 | 3 | "No references found" cleanup + stage-and-restore delete + multi-select bulk delete |
 | 4 | External image scan + download & **full re-attach** + undo |
 | 5 | Background-job progress, incremental index on `save_post`, polish |

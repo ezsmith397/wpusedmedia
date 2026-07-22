@@ -28,9 +28,10 @@ class Adapter_Registry {
 	 */
 	public function boot() {
 		$this->register( new Adapters\Core_Adapter() );
+		$this->register( new Adapters\Bricks_Adapter() );
 
-		// Phase 2 registers the Bricks adapter here. Third parties can add
-		// adapters (ACF, WooCommerce, ...) via this filter.
+		// Third parties can add adapters (ACF, WooCommerce, ...) via this filter.
+		// Adapters that report is_available() === false are skipped automatically.
 		$adapters = apply_filters( 'umedia_source_adapters', $this->adapters, $this );
 		if ( is_array( $adapters ) ) {
 			$this->adapters = $adapters;

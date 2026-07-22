@@ -1,0 +1,70 @@
+.ump-wrap .ump-index-banner {
+	margin: 16px 0;
+	padding: 8px 12px;
+}
+
+.ump-progress {
+	margin: 8px 0 4px;
+}
+
+.ump-progress-track {
+	background: #e2e4e7;
+	border-radius: 3px;
+	height: 14px;
+	overflow: hidden;
+	max-width: 480px;
+}
+
+.ump-progress-bar {
+	background: #2271b1;
+	height: 100%;
+	width: 0;
+	transition: width 0.2s ease;
+}
+
+.ump-progress-text {
+	margin: 6px 0 0;
+	color: #50575e;
+	font-size: 12px;
+}
+
+.ump-thumb {
+	width: 60px;
+	height: 60px;
+	object-fit: cover;
+	border-radius: 3px;
+	background: #f0f0f1;
+}
+
+.column-thumb {
+	width: 76px;
+}
+
+.column-used_in {
+	width: 22%;
+}
+
+.ump-count {
+	display: inline-block;
+	min-width: 22px;
+	padding: 1px 7px;
+	border-radius: 10px;
+	background: #2271b1;
+	color: #fff;
+	font-size: 12px;
+	text-align: center;
+}
+
+.ump-usage-list {
+	margin-top: 4px;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.ump-ctx {
+	color: #787c82;
+}
+
+.ump-unused {
+	color: #b32d2e;
+}

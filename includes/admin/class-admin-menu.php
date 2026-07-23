@@ -9,6 +9,7 @@ namespace UsedMediaPro\Admin;
 
 use UsedMediaPro\Usage_Index;
 use UsedMediaPro\Trash;
+use UsedMediaPro\External;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -146,8 +147,9 @@ class Admin_Menu {
 			'ump-admin',
 			'UMP',
 			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'umedia_rebuild' ),
+				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+				'nonce'         => wp_create_nonce( 'umedia_rebuild' ),
+				'externalNonce' => wp_create_nonce( 'umedia_external' ),
 			)
 		);
 	}
@@ -168,6 +170,7 @@ class Admin_Menu {
 			: __( 'Trash', 'used-media-pro' );
 		$tabs    = array(
 			'library'  => __( 'Library', 'used-media-pro' ),
+			'external' => __( 'External images', 'used-media-pro' ),
 			'trash'    => $trash_l,
 			'settings' => __( 'Settings', 'used-media-pro' ),
 		);
@@ -198,6 +201,8 @@ class Admin_Menu {
 			Settings::render();
 		} elseif ( 'trash' === $tab ) {
 			$this->render_trash_tab();
+		} elseif ( 'external' === $tab ) {
+			$this->render_external_tab();
 		} else {
 			$this->render_library_tab();
 		}
@@ -239,6 +244,35 @@ class Admin_Menu {
 			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
 			esc_html( $message )
 		);
+	}
+
+	/**
+	 * Render the external-images scan + results table.
+	 */
+	private function render_external_tab() {
+		$scanned = External::has_scanned();
+
+		echo '<div class="ump-index-banner ' . ( $scanned ? 'notice notice-info inline' : 'notice notice-warning inline' ) . '">';
+		if ( $scanned ) {
+			echo '<p>' . esc_html__( 'Import an external image to download it into the media library and rewrite every reference to the local copy. Use Undo to reverse an import.', 'used-media-pro' );
+			echo ' <button type="button" class="button ump-extscan">' . esc_html__( 'Rescan', 'used-media-pro' ) . '</button></p>';
+		} else {
+			echo '<p><strong>' . esc_html__( 'No external-image scan has run yet.', 'used-media-pro' ) . '</strong> ';
+			echo esc_html__( 'Scan your content for images hosted on other domains. This is read-only.', 'used-media-pro' );
+			echo ' <button type="button" class="button button-primary ump-extscan">' . esc_html__( 'Scan for external images', 'used-media-pro' ) . '</button></p>';
+		}
+		echo '<div class="ump-progress" style="display:none;"><div class="ump-progress-track"><div class="ump-progress-bar"></div></div><p class="ump-progress-text"></p></div>';
+		echo '</div>';
+
+		if ( $scanned ) {
+			$table = new External_List_Table();
+			$table->prepare_items();
+			echo '<form method="get">';
+			echo '<input type="hidden" name="page" value="used-media-pro" />';
+			echo '<input type="hidden" name="tab" value="external" />';
+			$table->display();
+			echo '</form>';
+		}
 	}
 
 	/**

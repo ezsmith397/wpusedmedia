@@ -68,15 +68,17 @@ interface Source_Adapter {
 	public function scan_external( $page, $per_page );
 
 	/**
-	 * Replace an external URL on a specific object with a freshly imported,
-	 * locally hosted attachment — re-attaching the id where the source supports it.
+	 * Replace one URL with another on a specific object, re-attaching the
+	 * attachment id where the source supports it.
 	 *
-	 * Phase 4.
+	 * Used for import (old = external, new = local, id = new attachment) and
+	 * for undo (old = local, new = external, id = 0).
 	 *
 	 * @param int    $object_id         The object holding the reference.
-	 * @param string $old_url           The external URL to replace.
-	 * @param int    $new_attachment_id The imported local attachment id.
-	 * @return bool True on success.
+	 * @param string $old_url           The URL to replace.
+	 * @param string $new_url           The replacement URL.
+	 * @param int    $new_attachment_id Attachment id to wire in, or 0 to unset.
+	 * @return bool True if anything changed.
 	 */
-	public function replace( $object_id, $old_url, $new_attachment_id );
+	public function replace_url( $object_id, $old_url, $new_url, $new_attachment_id );
 }

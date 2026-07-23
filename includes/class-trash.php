@@ -24,6 +24,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * native 'trash' status so EMPTY_TRASH_DAYS can never auto-purge these files.
  */
 class Trash {
+	// meta_query is required here to filter attachments by the trash flag; the
+	// perf hint doesn't apply at this scale.
+	// phpcs:disable WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 
 	const META_FLAG   = '_umedia_trashed';
 	const META_AT     = '_umedia_trashed_at';

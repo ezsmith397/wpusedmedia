@@ -10,6 +10,7 @@ namespace UsedMediaPro\Adapters;
 
 use UsedMediaPro\Source_Adapter;
 use UsedMediaPro\Attachment_Urls;
+use UsedMediaPro\External;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -235,31 +236,136 @@ class Core_Adapter implements Source_Adapter {
 	/**
 	 * Scan one batch of objects for external image URLs.
 	 *
-	 * Phase 4 — external scanning is not wired into the UI yet.
-	 *
 	 * @param int $page     Zero-based batch index.
 	 * @param int $per_page Objects per batch.
 	 * @return array External-URL rows plus scanned count and done flag.
 	 */
 	public function scan_external( $page, $per_page ) {
+		global $wpdb;
+		list( $types, $statuses ) = $this->object_query();
+
+		if ( empty( $types ) ) {
+			return array(
+				'external' => array(),
+				'scanned'  => 0,
+				'done'     => true,
+			);
+		}
+
+		$type_ph   = implode( ',', array_fill( 0, count( $types ), '%s' ) );
+		$status_ph = implode( ',', array_fill( 0, count( $statuses ), '%s' ) );
+		$offset    = max( 0, (int) $page ) * (int) $per_page;
+
+		$sql = "SELECT ID, post_content FROM {$wpdb->posts}
+			WHERE post_type IN ($type_ph) AND post_status IN ($status_ph)
+			ORDER BY ID ASC LIMIT %d OFFSET %d";
+
+		$params = array_merge( $types, $statuses, array( (int) $per_page, $offset ) );
+		$rows   = $wpdb->get_results( $wpdb->prepare( $sql, $params ) ); // phpcs:ignore WordPress.DB
+
+		$external = array();
+		foreach ( $rows as $row ) {
+			foreach ( $this->extract_image_urls( (string) $row->post_content ) as $url ) {
+				if ( External::is_external( $url ) ) {
+					$external[] = array(
+						'object_id' => (int) $row->ID,
+						'url'       => $url,
+						'context'   => 'content',
+					);
+				}
+			}
+		}
+
 		return array(
-			'external' => array(),
-			'scanned'  => 0,
-			'done'     => true,
+			'external' => $external,
+			'scanned'  => count( $rows ),
+			'done'     => count( $rows ) < (int) $per_page,
 		);
 	}
 
 	/**
-	 * Replace an external URL with a locally imported attachment.
+	 * Extract every <img> src and srcset URL from content (local or external).
 	 *
-	 * Phase 4 — implemented alongside the external-image feature.
+	 * @param string $content Raw post content.
+	 * @return string[]
+	 */
+	private function extract_image_urls( $content ) {
+		if ( '' === $content ) {
+			return array();
+		}
+		$urls = array();
+		if ( preg_match_all( '/<img\b[^>]*?\ssrc=["\']([^"\']+)["\']/i', $content, $m ) ) {
+			$urls = array_merge( $urls, $m[1] );
+		}
+		if ( preg_match_all( '/srcset=["\']([^"\']+)["\']/i', $content, $m ) ) {
+			foreach ( $m[1] as $set ) {
+				foreach ( explode( ',', $set ) as $candidate ) {
+					$candidate = trim( $candidate );
+					if ( '' === $candidate ) {
+						continue;
+					}
+					$parts = preg_split( '/\s+/', $candidate );
+					if ( ! empty( $parts[0] ) ) {
+						$urls[] = $parts[0];
+					}
+				}
+			}
+		}
+		return array_values( array_unique( $urls ) );
+	}
+
+	/**
+	 * Replace a URL in post_content, wiring the wp-image-{id} class onto any
+	 * <img> that now points at the new URL.
 	 *
-	 * @param int    $object_id         Object holding the reference.
-	 * @param string $old_url           External URL to replace.
-	 * @param int    $new_attachment_id Imported local attachment id.
+	 * @param int    $object_id         Post id.
+	 * @param string $old_url           URL to replace.
+	 * @param string $new_url           Replacement URL.
+	 * @param int    $new_attachment_id Attachment id to wire in, or 0.
 	 * @return bool
 	 */
-	public function replace( $object_id, $old_url, $new_attachment_id ) {
-		return false;
+	public function replace_url( $object_id, $old_url, $new_url, $new_attachment_id ) {
+		$post = get_post( $object_id );
+		if ( ! $post || false === strpos( (string) $post->post_content, $old_url ) ) {
+			return false;
+		}
+
+		$content = str_replace( $old_url, $new_url, $post->post_content );
+		if ( $new_attachment_id > 0 ) {
+			$content = $this->add_image_class( $content, $new_url, (int) $new_attachment_id );
+		}
+
+		wp_update_post(
+			array(
+				'ID'           => $object_id,
+				'post_content' => $content,
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * Add a wp-image-{id} class to any <img> whose src is the given URL.
+	 *
+	 * @param string $content Post content.
+	 * @param string $url     Image src to match.
+	 * @param int    $id      Attachment id.
+	 * @return string
+	 */
+	private function add_image_class( $content, $url, $id ) {
+		return (string) preg_replace_callback(
+			'/<img\b[^>]*>/i',
+			function ( $matches ) use ( $url, $id ) {
+				$tag = $matches[0];
+				if ( false === strpos( $tag, $url ) || false !== strpos( $tag, 'wp-image-' ) ) {
+					return $tag;
+				}
+				if ( preg_match( '/\sclass=("|\')(.*?)\1/i', $tag, $cm ) ) {
+					return str_replace( $cm[0], ' class="' . $cm[2] . ' wp-image-' . $id . '"', $tag );
+				}
+				return preg_replace( '/<img\b/i', '<img class="wp-image-' . $id . '"', $tag, 1 );
+			},
+			$content
+		);
 	}
 }

@@ -24,8 +24,9 @@ foreach ( array( '_umedia_trashed', '_umedia_trashed_at', '_umedia_trashed_by', 
 	$wpdb->delete( $wpdb->postmeta, array( 'meta_key' => $umedia_meta_key ) );
 }
 
-$umedia_table = $wpdb->prefix . 'umedia_usage';
-$wpdb->query( "DROP TABLE IF EXISTS {$umedia_table}" );
+foreach ( array( $wpdb->prefix . 'umedia_usage', $wpdb->prefix . 'umedia_external' ) as $umedia_table ) {
+	$wpdb->query( "DROP TABLE IF EXISTS {$umedia_table}" );
+}
 
 $umedia_options = array(
 	'umedia_settings',
@@ -33,6 +34,8 @@ $umedia_options = array(
 	'umedia_index_built',
 	'umedia_index_last_built',
 	'umedia_rebuild_state',
+	'umedia_external_scanned',
+	'umedia_extscan_state',
 );
 foreach ( $umedia_options as $umedia_option ) {
 	delete_option( $umedia_option );

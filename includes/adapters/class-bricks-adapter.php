@@ -169,32 +169,115 @@ class Bricks_Adapter implements Source_Adapter {
 	/**
 	 * Scan one batch of Bricks objects for external image URLs.
 	 *
-	 * Phase 4 — not wired into the UI yet.
-	 *
 	 * @param int $page     Zero-based batch index.
 	 * @param int $per_page Objects per batch.
 	 * @return array External-URL rows plus scanned count and done flag.
 	 */
 	public function scan_external( $page, $per_page ) {
+		$post_ids = $this->post_ids( $page, $per_page );
+		$keys     = $this->meta_keys();
+		$external = array();
+
+		foreach ( $post_ids as $post_id ) {
+			$urls = array();
+			foreach ( $keys as $key ) {
+				$content = $this->normalize( get_post_meta( $post_id, $key, true ) );
+				if ( is_array( $content ) ) {
+					$this->collect_urls( $content, $urls );
+				}
+			}
+			foreach ( array_unique( $urls ) as $url ) {
+				if ( \UsedMediaPro\External::is_external( $url ) ) {
+					$external[] = array(
+						'object_id' => (int) $post_id,
+						'url'       => $url,
+						'context'   => 'bricks',
+					);
+				}
+			}
+		}
+
 		return array(
-			'external' => array(),
-			'scanned'  => 0,
-			'done'     => true,
+			'external' => $external,
+			'scanned'  => count( $post_ids ),
+			'done'     => count( $post_ids ) < (int) $per_page,
 		);
 	}
 
 	/**
-	 * Replace an external URL with a locally imported attachment.
+	 * Recursively collect 'url' values from Bricks image objects.
 	 *
-	 * Phase 4 — Bricks re-attach updates the image object's id + url in place
-	 * within the postmeta array, then busts Bricks' cached CSS/HTML.
+	 * @param array    $data Bricks data.
+	 * @param string[] $urls Collected URLs, by reference.
+	 */
+	private function collect_urls( array $data, array &$urls ) {
+		if ( isset( $data['url'] ) && is_string( $data['url'] ) ) {
+			$urls[] = $data['url'];
+		}
+		foreach ( $data as $value ) {
+			if ( is_array( $value ) ) {
+				$this->collect_urls( $value, $urls );
+			}
+		}
+	}
+
+	/**
+	 * Replace a URL inside Bricks data, natively re-attaching the id on image
+	 * objects (id + url), then clearing Bricks' render cache.
 	 *
 	 * @param int    $object_id         Object holding the reference.
-	 * @param string $old_url           External URL to replace.
-	 * @param int    $new_attachment_id Imported local attachment id.
+	 * @param string $old_url           URL to replace.
+	 * @param string $new_url           Replacement URL.
+	 * @param int    $new_attachment_id Attachment id to wire in, or 0.
 	 * @return bool
 	 */
-	public function replace( $object_id, $old_url, $new_attachment_id ) {
-		return false;
+	public function replace_url( $object_id, $old_url, $new_url, $new_attachment_id ) {
+		$changed = false;
+		foreach ( $this->meta_keys() as $key ) {
+			$content = get_post_meta( $object_id, $key, true );
+			if ( ! is_array( $content ) ) {
+				continue;
+			}
+			$this->replace_in_tree( $content, $old_url, $new_url, (int) $new_attachment_id, $changed );
+			if ( $changed ) {
+				update_post_meta( $object_id, $key, wp_slash( $content ) );
+			}
+		}
+
+		if ( $changed && class_exists( '\\Bricks\\Assets' ) && method_exists( '\\Bricks\\Assets', 'regenerate_css_file' ) ) {
+			// Best-effort: drop this post's cached Bricks CSS so backgrounds refresh.
+			delete_post_meta( $object_id, '_bricks_inline_css' );
+		}
+
+		return $changed;
+	}
+
+	/**
+	 * Recursively rewrite a URL in Bricks data and re-attach ids on image nodes.
+	 *
+	 * @param array  $data    Bricks data (by reference).
+	 * @param string $old_url URL to replace.
+	 * @param string $new_url Replacement URL.
+	 * @param int    $id      Attachment id to set (0 to reset).
+	 * @param bool   $changed Whether anything changed (by reference).
+	 */
+	private function replace_in_tree( array &$data, $old_url, $new_url, $id, &$changed ) {
+		foreach ( $data as $key => &$value ) {
+			if ( is_array( $value ) ) {
+				$this->replace_in_tree( $value, $old_url, $new_url, $id, $changed );
+			} elseif ( is_string( $value ) && $value === $old_url ) {
+				$value   = $new_url;
+				$changed = true;
+			}
+		}
+		unset( $value );
+
+		// This node is the image object that now points at the new URL.
+		if ( isset( $data['url'] ) && $data['url'] === $new_url && array_key_exists( 'id', $data ) ) {
+			if ( (int) $data['id'] !== $id ) {
+				$data['id'] = $id;
+				$changed    = true;
+			}
+		}
 	}
 }

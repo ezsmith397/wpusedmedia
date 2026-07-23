@@ -50,6 +50,9 @@ class Plugin {
 		$this->registry->boot();
 
 		if ( is_admin() ) {
+			add_action( 'pre_get_posts', array( Trash::class, 'hide_from_admin_query' ) );
+			add_filter( 'ajax_query_attachments_args', array( Trash::class, 'hide_from_media_modal' ) );
+
 			( new Admin\Admin_Menu() )->hooks();
 			( new Ajax() )->hooks();
 		}

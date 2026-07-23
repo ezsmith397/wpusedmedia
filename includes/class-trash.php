@@ -41,6 +41,51 @@ class Trash {
 	}
 
 	/**
+	 * Hide trashed attachments from the native Media Library list screen.
+	 * Scoped to the admin main attachment query, so the plugin's own
+	 * (secondary) queries and the front end are untouched.
+	 *
+	 * @param \WP_Query $query The query being prepared.
+	 */
+	public static function hide_from_admin_query( $query ) {
+		if ( ! is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+		if ( 'attachment' !== $query->get( 'post_type' ) ) {
+			return;
+		}
+		$query->set( 'meta_query', self::merge_exclusion( $query->get( 'meta_query' ) ) );
+	}
+
+	/**
+	 * Hide trashed attachments from the media modal / grid (media pickers).
+	 *
+	 * @param array $args WP_Query args assembled for the attachments query.
+	 * @return array
+	 */
+	public static function hide_from_media_modal( $args ) {
+		$args['meta_query'] = self::merge_exclusion( isset( $args['meta_query'] ) ? $args['meta_query'] : array() );
+		return $args;
+	}
+
+	/**
+	 * Append a "not trashed" clause to an existing meta_query.
+	 *
+	 * @param mixed $meta_query Existing meta_query (array or empty).
+	 * @return array
+	 */
+	private static function merge_exclusion( $meta_query ) {
+		if ( ! is_array( $meta_query ) ) {
+			$meta_query = array();
+		}
+		$meta_query[] = array(
+			'key'     => self::META_FLAG,
+			'compare' => 'NOT EXISTS',
+		);
+		return $meta_query;
+	}
+
+	/**
 	 * Move attachments to the trash (reversible).
 	 *
 	 * @param int[]  $ids    Attachment ids.

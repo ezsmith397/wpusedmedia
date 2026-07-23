@@ -81,4 +81,12 @@ interface Source_Adapter {
 	 * @return bool True if anything changed.
 	 */
 	public function replace_url( $object_id, $old_url, $new_url, $new_attachment_id );
+
+	/**
+	 * Reference rows for a single object, for incremental index updates on save.
+	 *
+	 * @param int $object_id The object to scan.
+	 * @return array<int,array{attachment_id:int,object_id:int,context:string}>
+	 */
+	public function scan_object( $object_id );
 }

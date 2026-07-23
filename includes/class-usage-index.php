@@ -141,6 +141,17 @@ class Usage_Index {
 	}
 
 	/**
+	 * Drop all index rows for one object (e.g. before re-indexing on save).
+	 *
+	 * @param int $object_id Object id.
+	 */
+	public static function delete_for_object( $object_id ) {
+		global $wpdb;
+		$table = self::table();
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE object_id = %d", (int) $object_id ) );
+	}
+
+	/**
 	 * Drop all index rows for the given attachments (e.g. after a purge).
 	 *
 	 * @param int[] $attachment_ids Attachment ids.

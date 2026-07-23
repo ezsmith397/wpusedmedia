@@ -234,6 +234,41 @@ class Core_Adapter implements Source_Adapter {
 	}
 
 	/**
+	 * Reference rows for a single post (incremental index update on save).
+	 *
+	 * @param int $object_id Post id.
+	 * @return array
+	 */
+	public function scan_object( $object_id ) {
+		$post = get_post( $object_id );
+		if ( ! $post ) {
+			return array();
+		}
+		list( $types ) = $this->object_query();
+		if ( ! in_array( $post->post_type, $types, true ) ) {
+			return array();
+		}
+
+		$references = array();
+		foreach ( $this->extract_ids_from_content( (string) $post->post_content ) as $attachment_id ) {
+			$references[] = array(
+				'attachment_id' => $attachment_id,
+				'object_id'     => (int) $object_id,
+				'context'       => 'content',
+			);
+		}
+		$thumb = (int) get_post_thumbnail_id( $object_id );
+		if ( $thumb ) {
+			$references[] = array(
+				'attachment_id' => $thumb,
+				'object_id'     => (int) $object_id,
+				'context'       => 'thumbnail',
+			);
+		}
+		return $references;
+	}
+
+	/**
 	 * Scan one batch of objects for external image URLs.
 	 *
 	 * @param int $page     Zero-based batch index.

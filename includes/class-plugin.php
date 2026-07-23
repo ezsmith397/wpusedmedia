@@ -49,6 +49,8 @@ class Plugin {
 		$this->registry = new Adapter_Registry();
 		$this->registry->boot();
 
+		( new Index_Sync() )->hooks();
+
 		if ( is_admin() ) {
 			add_action( 'admin_init', array( Activator::class, 'maybe_upgrade' ) );
 			add_action( 'pre_get_posts', array( Trash::class, 'hide_from_admin_query' ) );

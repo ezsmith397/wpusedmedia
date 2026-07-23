@@ -167,6 +167,31 @@ class Bricks_Adapter implements Source_Adapter {
 	}
 
 	/**
+	 * Reference rows for a single Bricks object (incremental index on save).
+	 *
+	 * @param int $object_id Post id.
+	 * @return array
+	 */
+	public function scan_object( $object_id ) {
+		$ids = array();
+		foreach ( $this->meta_keys() as $key ) {
+			$content = $this->normalize( get_post_meta( $object_id, $key, true ) );
+			if ( is_array( $content ) ) {
+				$this->collect_image_ids( $content, $ids );
+			}
+		}
+		$references = array();
+		foreach ( array_unique( array_filter( $ids ) ) as $attachment_id ) {
+			$references[] = array(
+				'attachment_id' => (int) $attachment_id,
+				'object_id'     => (int) $object_id,
+				'context'       => 'bricks',
+			);
+		}
+		return $references;
+	}
+
+	/**
 	 * Scan one batch of Bricks objects for external image URLs.
 	 *
 	 * @param int $page     Zero-based batch index.

@@ -164,12 +164,14 @@ class External_List_Table extends WP_List_Table {
 				$title = '#' . (int) $ref->object_id;
 			}
 			$edit    = get_edit_post_link( $ref->object_id );
-			$label   = ( $edit ? '<a href="' . esc_url( $edit ) . '">' . esc_html( $title ) . '</a>' : esc_html( $title ) )
-				. ' <span class="ump-ctx">(' . esc_html( $ref->source_id ) . ')</span>';
-			$lines[] = $label;
+			$lines[] = $edit
+				? '<a href="' . esc_url( $edit ) . '">' . esc_html( $title ) . '</a>'
+				: esc_html( $title );
 		}
-		return '<details><summary><strong>' . (int) $item->refs . '</strong></summary>'
-			. '<div class="ump-usage-list">' . implode( '<br>', $lines ) . '</div></details>';
+		if ( empty( $lines ) ) {
+			return '&mdash;';
+		}
+		return '<div class="ump-usage-list">' . implode( '<br>', $lines ) . '</div>';
 	}
 
 	/**

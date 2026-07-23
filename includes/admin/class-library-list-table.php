@@ -44,6 +44,7 @@ class Library_List_Table extends WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
+			'cb'         => '<input type="checkbox" />',
 			'thumb'      => __( 'Preview', 'used-media-pro' ),
 			'title'      => __( 'File', 'used-media-pro' ),
 			'used_in'    => __( 'Used in', 'used-media-pro' ),
@@ -161,6 +162,27 @@ class Library_List_Table extends WP_List_Table {
 	}
 
 	/**
+	 * Bulk actions offered on the library.
+	 *
+	 * @return array
+	 */
+	protected function get_bulk_actions() {
+		return array(
+			'stage' => __( 'Move to staging (safe delete)', 'used-media-pro' ),
+		);
+	}
+
+	/**
+	 * Checkbox column for multi-select.
+	 *
+	 * @param \WP_Post $item Attachment post.
+	 * @return string
+	 */
+	public function column_cb( $item ) {
+		return sprintf( '<input type="checkbox" name="media[]" value="%d" />', (int) $item->ID );
+	}
+
+	/**
 	 * Preview thumbnail column.
 	 *
 	 * @param \WP_Post $item Attachment post.
@@ -196,6 +218,19 @@ class Library_List_Table extends WP_List_Table {
 		$file_url = wp_get_attachment_url( $item->ID );
 		if ( $file_url ) {
 			$actions['view'] = '<a href="' . esc_url( $file_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'View file', 'used-media-pro' ) . '</a>';
+		}
+		if ( current_user_can( 'delete_post', $item->ID ) ) {
+			$stage_url        = wp_nonce_url(
+				add_query_arg(
+					array(
+						'action'     => 'stage',
+						'attachment' => $item->ID,
+					),
+					menu_page_url( 'used-media-pro', false )
+				),
+				'umedia-stage-' . $item->ID
+			);
+			$actions['stage'] = '<a href="' . esc_url( $stage_url ) . '">' . esc_html__( 'Move to staging', 'used-media-pro' ) . '</a>';
 		}
 
 		return '<strong>' . $name . '</strong>' . $this->row_actions( $actions );

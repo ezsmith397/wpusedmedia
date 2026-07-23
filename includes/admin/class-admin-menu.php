@@ -8,6 +8,7 @@
 namespace UsedMediaPro\Admin;
 
 use UsedMediaPro\Usage_Index;
+use UsedMediaPro\Staging;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -45,6 +46,88 @@ class Admin_Menu {
 			'used-media-pro',
 			array( $this, 'render_page' )
 		);
+
+		// Process stage/restore/purge before any output so we can redirect.
+		add_action( 'load-' . $this->hook, array( $this, 'handle_actions' ) );
+	}
+
+	/**
+	 * Handle stage / restore / purge actions (bulk and per-row) on page load,
+	 * then redirect back with a result notice. Runs before headers are sent.
+	 */
+	public function handle_actions() {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return;
+		}
+
+		// The request is read to determine which action/nonce applies; the
+		// matching nonce is verified below before any state is changed.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended,WordPress.Security.NonceVerification.Missing
+
+		// Resolve the requested action from either bulk dropdown.
+		$action = '';
+		foreach ( array( 'action', 'action2' ) as $key ) {
+			$candidate = isset( $_REQUEST[ $key ] ) ? sanitize_key( wp_unslash( $_REQUEST[ $key ] ) ) : '';
+			if ( '' !== $candidate && '-1' !== $candidate ) {
+				$action = $candidate;
+				break;
+			}
+		}
+		if ( ! in_array( $action, array( 'stage', 'restore', 'purge' ), true ) ) {
+			return;
+		}
+
+		// Collect target ids (bulk 'media[]' or single-row 'attachment').
+		$is_bulk = isset( $_REQUEST['media'] );
+		if ( $is_bulk ) {
+			$ids = array_map( 'intval', (array) wp_unslash( $_REQUEST['media'] ) );
+		} elseif ( isset( $_REQUEST['attachment'] ) ) {
+			$ids = array( (int) $_REQUEST['attachment'] );
+		} else {
+			return;
+		}
+		$ids = array_filter( $ids );
+		if ( empty( $ids ) ) {
+			return;
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended,WordPress.Security.NonceVerification.Missing
+
+		// Verify the matching nonce: list-table bulk nonce, or per-row nonce.
+		if ( $is_bulk ) {
+			$plural = 'stage' === $action ? 'attachments' : 'staged';
+			check_admin_referer( 'bulk-' . $plural );
+		} else {
+			check_admin_referer( 'umedia-' . $action . '-' . $ids[0] );
+		}
+
+		switch ( $action ) {
+			case 'stage':
+				$count = count( Staging::stage( $ids, 'manual' ) );
+				break;
+			case 'restore':
+				$count = count( Staging::restore( $ids ) );
+				break;
+			case 'purge':
+				$purged = Staging::purge( $ids );
+				Usage_Index::delete_for_attachments( $purged );
+				$count = count( $purged );
+				break;
+			default:
+				return;
+		}
+
+		$referer  = wp_get_referer();
+		$redirect = $referer ? $referer : menu_page_url( 'used-media-pro', false );
+		$redirect = remove_query_arg( array( 'action', 'action2', 'media', 'attachment', '_wpnonce', '_wp_http_referer' ), $redirect );
+		$redirect = add_query_arg(
+			array(
+				'umedia_done'  => $action,
+				'umedia_count' => $count,
+			),
+			$redirect
+		);
+		wp_safe_redirect( $redirect );
+		exit;
 	}
 
 	/**
@@ -78,9 +161,14 @@ class Admin_Menu {
 		}
 
 		// Read-only tab selector from the page URL; navigation only, so no nonce.
-		$tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'library'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$tabs = array(
+		$tab       = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'library'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$staged    = Staging::count_staged();
+		$staging_l = $staged
+			? sprintf( /* translators: %d: number of staged items. */ __( 'Staging (%d)', 'used-media-pro' ), $staged )
+			: __( 'Staging', 'used-media-pro' );
+		$tabs      = array(
 			'library'  => __( 'Library', 'used-media-pro' ),
+			'staging'  => $staging_l,
 			'settings' => __( 'Settings', 'used-media-pro' ),
 		);
 		if ( ! isset( $tabs[ $tab ] ) ) {
@@ -89,6 +177,8 @@ class Admin_Menu {
 
 		echo '<div class="wrap ump-wrap">';
 		echo '<h1>' . esc_html__( 'Used Media', 'used-media-pro' ) . '</h1>';
+
+		$this->render_action_notice();
 
 		echo '<h2 class="nav-tab-wrapper">';
 		foreach ( $tabs as $key => $label ) {
@@ -106,11 +196,63 @@ class Admin_Menu {
 
 		if ( 'settings' === $tab ) {
 			Settings::render();
+		} elseif ( 'staging' === $tab ) {
+			$this->render_staging_tab();
 		} else {
 			$this->render_library_tab();
 		}
 
 		echo '</div>';
+	}
+
+	/**
+	 * Show a success notice after a stage/restore/purge redirect.
+	 */
+	private function render_action_notice() {
+		// Read-only result flags from our own redirect; no state change, so no nonce.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended
+		if ( ! isset( $_GET['umedia_done'] ) ) {
+			return;
+		}
+		$done  = sanitize_key( wp_unslash( $_GET['umedia_done'] ) );
+		$count = isset( $_GET['umedia_count'] ) ? absint( wp_unslash( $_GET['umedia_count'] ) ) : 0;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		switch ( $done ) {
+			case 'stage':
+				/* translators: %d: number of items. */
+				$message = sprintf( _n( '%d item moved to staging.', '%d items moved to staging.', $count, 'used-media-pro' ), $count );
+				break;
+			case 'restore':
+				/* translators: %d: number of items. */
+				$message = sprintf( _n( '%d item restored.', '%d items restored.', $count, 'used-media-pro' ), $count );
+				break;
+			case 'purge':
+				/* translators: %d: number of items. */
+				$message = sprintf( _n( '%d item permanently deleted.', '%d items permanently deleted.', $count, 'used-media-pro' ), $count );
+				break;
+			default:
+				return;
+		}
+
+		printf(
+			'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+			esc_html( $message )
+		);
+	}
+
+	/**
+	 * Render the staging list table.
+	 */
+	private function render_staging_tab() {
+		echo '<p class="description">' . esc_html__( 'These attachments are soft-deleted: the files and posts are intact and can be restored exactly. Nothing is removed from disk until you delete it permanently here.', 'used-media-pro' ) . '</p>';
+
+		$table = new Staging_List_Table();
+		$table->prepare_items();
+
+		echo '<form method="post">';
+		$table->display();
+		echo '</form>';
 	}
 
 	/**

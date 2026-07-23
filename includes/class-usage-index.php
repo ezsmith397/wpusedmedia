@@ -22,6 +22,7 @@ class Usage_Index {
 	 * The corresponding DB sniffs are therefore disabled for this file.
 	 */
 	// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	// phpcs:disable WordPress.DB.PreparedSQLPlaceholders
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 
@@ -137,5 +138,21 @@ class Usage_Index {
 		global $wpdb;
 		$table = self::table();
 		return array_map( 'intval', $wpdb->get_col( "SELECT DISTINCT attachment_id FROM {$table}" ) );
+	}
+
+	/**
+	 * Drop all index rows for the given attachments (e.g. after a purge).
+	 *
+	 * @param int[] $attachment_ids Attachment ids.
+	 */
+	public static function delete_for_attachments( array $attachment_ids ) {
+		global $wpdb;
+		$ids = array_filter( array_map( 'intval', $attachment_ids ) );
+		if ( empty( $ids ) ) {
+			return;
+		}
+		$table        = self::table();
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$table} WHERE attachment_id IN ($placeholders)", $ids ) );
 	}
 }

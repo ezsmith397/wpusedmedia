@@ -59,4 +59,27 @@
 		e.preventDefault();
 		run( $( this ) );
 	} );
+
+	var PURGE_MSG =
+		'Permanently delete the selected file(s)? This removes them from disk and cannot be undone.';
+
+	// Confirm a per-row permanent delete.
+	$( document ).on( 'click', '.ump-confirm-purge', function ( e ) {
+		if ( ! window.confirm( PURGE_MSG ) ) {
+			e.preventDefault();
+		}
+	} );
+
+	// Confirm a bulk permanent delete on the staging form.
+	$( document ).on( 'submit', 'form', function ( e ) {
+		var $form = $( this );
+		if ( ! $form.find( 'input[name="media[]"]' ).length ) {
+			return;
+		}
+		var action = $form.find( 'select[name="action"]' ).val();
+		var action2 = $form.find( 'select[name="action2"]' ).val();
+		if ( ( 'purge' === action || 'purge' === action2 ) && ! window.confirm( PURGE_MSG ) ) {
+			e.preventDefault();
+		}
+	} );
 } )( jQuery );

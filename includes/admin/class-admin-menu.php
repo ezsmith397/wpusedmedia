@@ -141,8 +141,8 @@ class Admin_Menu {
 			return;
 		}
 
-		wp_enqueue_style( 'ump-admin', UMEDIA_URL . 'assets/admin.css', array(), UMEDIA_VERSION );
-		wp_enqueue_script( 'ump-admin', UMEDIA_URL . 'assets/admin.js', array( 'jquery' ), UMEDIA_VERSION, true );
+		wp_enqueue_style( 'ump-admin', UMEDIA_URL . 'assets/admin.css', array(), self::asset_version( 'assets/admin.css' ) );
+		wp_enqueue_script( 'ump-admin', UMEDIA_URL . 'assets/admin.js', array( 'jquery' ), self::asset_version( 'assets/admin.js' ), true );
 		wp_localize_script(
 			'ump-admin',
 			'UMP',
@@ -152,6 +152,19 @@ class Admin_Menu {
 				'externalNonce' => wp_create_nonce( 'umedia_external' ),
 			)
 		);
+	}
+
+	/**
+	 * Version string for an asset, based on its file modification time so
+	 * browser caches bust whenever the file actually changes. Falls back to
+	 * the plugin version if the file is unreadable.
+	 *
+	 * @param string $relative_path Path under the plugin directory.
+	 * @return string
+	 */
+	private static function asset_version( $relative_path ) {
+		$mtime = @filemtime( UMEDIA_PATH . $relative_path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		return $mtime ? (string) $mtime : UMEDIA_VERSION;
 	}
 
 	/**

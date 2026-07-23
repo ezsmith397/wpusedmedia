@@ -350,57 +350,36 @@ class Core_Adapter implements Source_Adapter {
 	}
 
 	/**
-	 * Replace a URL in post_content, wiring the wp-image-{id} class onto any
-	 * <img> that now points at the new URL.
+	 * Replace a URL in post_content with the locally hosted URL.
+	 *
+	 * Deliberately a URL-only swap: we do NOT inject a wp-image-{id} class.
+	 * A Gutenberg core/image block only emits that class when its block
+	 * attributes carry the id; adding the class to the HTML without matching
+	 * block attributes makes the saved markup fail block validation ("Block
+	 * contains unexpected or invalid content"). Swapping the src alone keeps
+	 * the block valid, and the image is still locally hosted — which is the
+	 * goal. ($new_attachment_id is accepted for the interface; Bricks uses it
+	 * for a true id re-attach where there is no block-validation concern.)
 	 *
 	 * @param int    $object_id         Post id.
 	 * @param string $old_url           URL to replace.
 	 * @param string $new_url           Replacement URL.
-	 * @param int    $new_attachment_id Attachment id to wire in, or 0.
+	 * @param int    $new_attachment_id Attachment id (unused for core content).
 	 * @return bool
 	 */
 	public function replace_url( $object_id, $old_url, $new_url, $new_attachment_id ) {
+		unset( $new_attachment_id );
 		$post = get_post( $object_id );
 		if ( ! $post || false === strpos( (string) $post->post_content, $old_url ) ) {
 			return false;
 		}
 
-		$content = str_replace( $old_url, $new_url, $post->post_content );
-		if ( $new_attachment_id > 0 ) {
-			$content = $this->add_image_class( $content, $new_url, (int) $new_attachment_id );
-		}
-
 		wp_update_post(
 			array(
 				'ID'           => $object_id,
-				'post_content' => $content,
+				'post_content' => str_replace( $old_url, $new_url, $post->post_content ),
 			)
 		);
 		return true;
-	}
-
-	/**
-	 * Add a wp-image-{id} class to any <img> whose src is the given URL.
-	 *
-	 * @param string $content Post content.
-	 * @param string $url     Image src to match.
-	 * @param int    $id      Attachment id.
-	 * @return string
-	 */
-	private function add_image_class( $content, $url, $id ) {
-		return (string) preg_replace_callback(
-			'/<img\b[^>]*>/i',
-			function ( $matches ) use ( $url, $id ) {
-				$tag = $matches[0];
-				if ( false === strpos( $tag, $url ) || false !== strpos( $tag, 'wp-image-' ) ) {
-					return $tag;
-				}
-				if ( preg_match( '/\sclass=("|\')(.*?)\1/i', $tag, $cm ) ) {
-					return str_replace( $cm[0], ' class="' . $cm[2] . ' wp-image-' . $id . '"', $tag );
-				}
-				return preg_replace( '/<img\b/i', '<img class="wp-image-' . $id . '"', $tag, 1 );
-			},
-			$content
-		);
 	}
 }

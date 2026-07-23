@@ -12,37 +12,32 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Trashing moves an attachment to an internal post status and remembers its
- * previous status. The post row and the file on disk are left completely
- * intact, so a restore is exact and lossless. Only delete_permanently()
- * actually removes anything, and only for items already in the trashed status.
+ * Trashing flags an attachment with postmeta and leaves the post row, its
+ * status, and the file on disk completely intact — so a restore is exact and
+ * lossless. Only delete_permanently() actually removes anything, and only for
+ * items already carrying the trash flag.
  *
- * This deliberately uses its own status rather than WordPress's native 'trash'
- * status, so WP's EMPTY_TRASH_DAYS cron can never auto-purge these files.
+ * We use a meta flag rather than a post status because WordPress core forces
+ * attachment post_status onto a fixed whitelist (inherit/private/trash/
+ * auto-draft) in wp_insert_post(), so a custom status silently reverts to
+ * 'inherit'. A meta flag is not coerced, and it deliberately avoids WP's
+ * native 'trash' status so EMPTY_TRASH_DAYS can never auto-purge these files.
  */
 class Trash {
 
-	const STATUS      = 'umedia_trashed';
-	const META_PREV   = '_umedia_trash_prev_status';
+	const META_FLAG   = '_umedia_trashed';
 	const META_AT     = '_umedia_trashed_at';
 	const META_BY     = '_umedia_trashed_by';
 	const META_REASON = '_umedia_trashed_reason';
 
 	/**
-	 * Register the internal post status. Hooked on init.
+	 * Whether an attachment is currently trashed.
+	 *
+	 * @param int $id Attachment id.
+	 * @return bool
 	 */
-	public static function register_status() {
-		register_post_status(
-			self::STATUS,
-			array(
-				'label'                     => _x( 'Trashed', 'post status', 'used-media-pro' ),
-				'public'                    => false,
-				'internal'                  => true,
-				'exclude_from_search'       => true,
-				'show_in_admin_all_list'    => false,
-				'show_in_admin_status_list' => false,
-			)
-		);
+	public static function is_trashed( $id ) {
+		return '' !== (string) get_post_meta( (int) $id, self::META_FLAG, true );
 	}
 
 	/**
@@ -56,29 +51,23 @@ class Trash {
 		$done = array();
 		foreach ( array_map( 'intval', $ids ) as $id ) {
 			$post = get_post( $id );
-			if ( ! $post || 'attachment' !== $post->post_type || self::STATUS === $post->post_status ) {
+			if ( ! $post || 'attachment' !== $post->post_type || self::is_trashed( $id ) ) {
 				continue;
 			}
 			if ( ! current_user_can( 'delete_post', $id ) ) {
 				continue;
 			}
-			update_post_meta( $id, self::META_PREV, $post->post_status );
+			update_post_meta( $id, self::META_FLAG, '1' );
 			update_post_meta( $id, self::META_AT, current_time( 'mysql' ) );
 			update_post_meta( $id, self::META_BY, get_current_user_id() );
 			update_post_meta( $id, self::META_REASON, sanitize_key( $reason ) );
-			wp_update_post(
-				array(
-					'ID'          => $id,
-					'post_status' => self::STATUS,
-				)
-			);
 			$done[] = $id;
 		}
 		return $done;
 	}
 
 	/**
-	 * Restore trashed attachments to their previous status.
+	 * Restore attachments from the trash (just clears the flag metadata).
 	 *
 	 * @param int[] $ids Attachment ids.
 	 * @return int[] Ids actually restored.
@@ -86,23 +75,12 @@ class Trash {
 	public static function restore( array $ids ) {
 		$done = array();
 		foreach ( array_map( 'intval', $ids ) as $id ) {
-			$post = get_post( $id );
-			if ( ! $post || self::STATUS !== $post->post_status ) {
+			if ( ! self::is_trashed( $id ) ) {
 				continue;
 			}
 			if ( ! current_user_can( 'delete_post', $id ) ) {
 				continue;
 			}
-			$prev = get_post_meta( $id, self::META_PREV, true );
-			if ( '' === $prev ) {
-				$prev = 'inherit';
-			}
-			wp_update_post(
-				array(
-					'ID'          => $id,
-					'post_status' => $prev,
-				)
-			);
 			self::clear_meta( $id );
 			$done[] = $id;
 		}
@@ -111,7 +89,7 @@ class Trash {
 
 	/**
 	 * Permanently delete trashed attachments (files + post). Only operates on
-	 * items already in the trashed status — a live attachment can never be
+	 * items already carrying the trash flag — a live attachment can never be
 	 * deleted without first being moved to the trash.
 	 *
 	 * @param int[] $ids Attachment ids.
@@ -120,8 +98,7 @@ class Trash {
 	public static function delete_permanently( array $ids ) {
 		$done = array();
 		foreach ( array_map( 'intval', $ids ) as $id ) {
-			$post = get_post( $id );
-			if ( ! $post || self::STATUS !== $post->post_status ) {
+			if ( ! self::is_trashed( $id ) ) {
 				continue;
 			}
 			if ( ! current_user_can( 'delete_post', $id ) ) {
@@ -135,13 +112,38 @@ class Trash {
 	}
 
 	/**
+	 * Ids of all attachments currently in the trash.
+	 *
+	 * @return int[]
+	 */
+	public static function trashed_ids() {
+		$query = new \WP_Query(
+			array(
+				'post_type'              => 'attachment',
+				'post_status'            => 'inherit',
+				'fields'                 => 'ids',
+				'posts_per_page'         => -1,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
+				'meta_query'             => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					array(
+						'key'     => self::META_FLAG,
+						'compare' => 'EXISTS',
+					),
+				),
+			)
+		);
+		return array_map( 'intval', $query->posts );
+	}
+
+	/**
 	 * Number of attachments currently in the trash.
 	 *
 	 * @return int
 	 */
 	public static function count_trashed() {
-		$counts = wp_count_posts( 'attachment' );
-		return isset( $counts->{self::STATUS} ) ? (int) $counts->{self::STATUS} : 0;
+		return count( self::trashed_ids() );
 	}
 
 	/**
@@ -150,7 +152,7 @@ class Trash {
 	 * @param int $id Attachment id.
 	 */
 	private static function clear_meta( $id ) {
-		delete_post_meta( $id, self::META_PREV );
+		delete_post_meta( $id, self::META_FLAG );
 		delete_post_meta( $id, self::META_AT );
 		delete_post_meta( $id, self::META_BY );
 		delete_post_meta( $id, self::META_REASON );

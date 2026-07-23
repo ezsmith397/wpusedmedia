@@ -75,11 +75,18 @@ class Trash_List_Table extends WP_List_Table {
 		$query = new WP_Query(
 			array(
 				'post_type'      => 'attachment',
-				'post_status'    => Trash::STATUS,
+				'post_status'    => 'inherit',
 				'posts_per_page' => $per_page,
 				'paged'          => $paged,
-				'orderby'        => 'modified',
+				'orderby'        => 'meta_value',
+				'meta_key'       => Trash::META_AT, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
 				'order'          => 'DESC',
+				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+					array(
+						'key'     => Trash::META_FLAG,
+						'compare' => 'EXISTS',
+					),
+				),
 			)
 		);
 

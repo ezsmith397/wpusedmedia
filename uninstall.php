@@ -16,18 +16,11 @@ global $wpdb;
 // change). Disable the WordPress.DB checks for the teardown section.
 // phpcs:disable WordPress.DB
 
-// Restore any attachments still in the trash back to their previous status,
-// so they don't get stranded in an unregistered status once the plugin
-// (which registers 'umedia_trashed') is gone.
-$wpdb->query(
-	"UPDATE {$wpdb->posts} p
-	JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_umedia_trash_prev_status'
-	SET p.post_status = m.meta_value
-	WHERE p.post_status = 'umedia_trashed'"
-);
-// Any left in the trashed status without prev-status meta fall back to inherit.
-$wpdb->query( "UPDATE {$wpdb->posts} SET post_status = 'inherit' WHERE post_type = 'attachment' AND post_status = 'umedia_trashed'" );
-foreach ( array( '_umedia_trash_prev_status', '_umedia_trashed_at', '_umedia_trashed_by', '_umedia_trashed_reason' ) as $umedia_meta_key ) {
+// Remove the plugin's trash flags. Attachments themselves are never touched;
+// trashing only ever added postmeta, so clearing it fully restores them.
+// '_umedia_trash_prev_status' is a legacy key from an earlier status-based
+// approach and is cleared here too.
+foreach ( array( '_umedia_trashed', '_umedia_trashed_at', '_umedia_trashed_by', '_umedia_trashed_reason', '_umedia_trash_prev_status' ) as $umedia_meta_key ) {
 	$wpdb->delete( $wpdb->postmeta, array( 'meta_key' => $umedia_meta_key ) );
 }
 

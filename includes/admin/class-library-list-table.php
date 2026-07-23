@@ -8,6 +8,7 @@
 namespace UsedMediaPro\Admin;
 
 use UsedMediaPro\Usage_Index;
+use UsedMediaPro\Trash;
 use WP_List_Table;
 use WP_Query;
 
@@ -76,9 +77,11 @@ class Library_List_Table extends WP_List_Table {
 		$current = $this->current_usage_filter();
 		$base    = remove_query_arg( array( 'usage', 'paged' ) );
 
-		$total  = (int) ( wp_count_posts( 'attachment' )->inherit );
-		$used   = count( Usage_Index::used_attachment_ids() );
-		$unused = max( 0, $total - $used );
+		// Trashed items are excluded from the library and from every count.
+		$trashed_ids = Trash::trashed_ids();
+		$total       = max( 0, (int) wp_count_posts( 'attachment' )->inherit - count( $trashed_ids ) );
+		$used        = count( array_diff( Usage_Index::used_attachment_ids(), $trashed_ids ) );
+		$unused      = max( 0, $total - $used );
 
 		$make = function ( $key, $label, $count ) use ( $base, $current ) {
 			$url   = 'all' === $key ? $base : add_query_arg( 'usage', $key, $base );
@@ -130,6 +133,13 @@ class Library_List_Table extends WP_List_Table {
 			'paged'          => $paged,
 			'orderby'        => $orderby,
 			'order'          => $order,
+			// Hide trashed items from the library view.
+			'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				array(
+					'key'     => Trash::META_FLAG,
+					'compare' => 'NOT EXISTS',
+				),
+			),
 		);
 
 		if ( ! empty( $_REQUEST['s'] ) ) {

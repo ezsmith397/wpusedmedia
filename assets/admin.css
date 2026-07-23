@@ -36,8 +36,10 @@
 	background: #f0f0f1;
 }
 
-.column-thumb {
+.column-thumb,
+.column-preview {
 	width: 76px;
+	text-align: left;
 }
 
 .column-used_in {

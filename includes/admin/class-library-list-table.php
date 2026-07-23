@@ -168,7 +168,7 @@ class Library_List_Table extends WP_List_Table {
 	 */
 	protected function get_bulk_actions() {
 		return array(
-			'stage' => __( 'Move to staging (safe delete)', 'used-media-pro' ),
+			'trash' => __( 'Move to Trash', 'used-media-pro' ),
 		);
 	}
 
@@ -220,17 +220,17 @@ class Library_List_Table extends WP_List_Table {
 			$actions['view'] = '<a href="' . esc_url( $file_url ) . '" target="_blank" rel="noopener">' . esc_html__( 'View file', 'used-media-pro' ) . '</a>';
 		}
 		if ( current_user_can( 'delete_post', $item->ID ) ) {
-			$stage_url        = wp_nonce_url(
+			$trash_url        = wp_nonce_url(
 				add_query_arg(
 					array(
-						'action'     => 'stage',
+						'action'     => 'trash',
 						'attachment' => $item->ID,
 					),
 					menu_page_url( 'used-media-pro', false )
 				),
-				'umedia-stage-' . $item->ID
+				'umedia-trash-' . $item->ID
 			);
-			$actions['stage'] = '<a href="' . esc_url( $stage_url ) . '">' . esc_html__( 'Move to staging', 'used-media-pro' ) . '</a>';
+			$actions['trash'] = '<a href="' . esc_url( $trash_url ) . '">' . esc_html__( 'Move to Trash', 'used-media-pro' ) . '</a>';
 		}
 
 		return '<strong>' . $name . '</strong>' . $this->row_actions( $actions );

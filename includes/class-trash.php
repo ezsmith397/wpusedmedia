@@ -1,6 +1,6 @@
 <?php
 /**
- * Stage-and-restore deletion: reversible "soft delete" for attachments.
+ * Reversible trash for attachments: a plugin-controlled soft delete.
  *
  * @package UsedMediaPro
  */
@@ -12,18 +12,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Staging moves an attachment to an internal post status and remembers its
+ * Trashing moves an attachment to an internal post status and remembers its
  * previous status. The post row and the file on disk are left completely
- * intact, so a restore is exact and lossless. Only purge() actually deletes,
- * and only for items already in the staged status.
+ * intact, so a restore is exact and lossless. Only delete_permanently()
+ * actually removes anything, and only for items already in the trashed status.
+ *
+ * This deliberately uses its own status rather than WordPress's native 'trash'
+ * status, so WP's EMPTY_TRASH_DAYS cron can never auto-purge these files.
  */
-class Staging {
+class Trash {
 
-	const STATUS      = 'umedia_staged';
-	const META_PREV   = '_umedia_prev_status';
-	const META_AT     = '_umedia_staged_at';
-	const META_BY     = '_umedia_staged_by';
-	const META_REASON = '_umedia_staged_reason';
+	const STATUS      = 'umedia_trashed';
+	const META_PREV   = '_umedia_trash_prev_status';
+	const META_AT     = '_umedia_trashed_at';
+	const META_BY     = '_umedia_trashed_by';
+	const META_REASON = '_umedia_trashed_reason';
 
 	/**
 	 * Register the internal post status. Hooked on init.
@@ -32,7 +35,7 @@ class Staging {
 		register_post_status(
 			self::STATUS,
 			array(
-				'label'                     => _x( 'Staged for deletion', 'post status', 'used-media-pro' ),
+				'label'                     => _x( 'Trashed', 'post status', 'used-media-pro' ),
 				'public'                    => false,
 				'internal'                  => true,
 				'exclude_from_search'       => true,
@@ -43,13 +46,13 @@ class Staging {
 	}
 
 	/**
-	 * Move attachments into staging (reversible).
+	 * Move attachments to the trash (reversible).
 	 *
 	 * @param int[]  $ids    Attachment ids.
-	 * @param string $reason Why they were staged ('manual' or 'no_references').
-	 * @return int[] Ids actually staged.
+	 * @param string $reason Why they were trashed ('manual' or 'no_references').
+	 * @return int[] Ids actually trashed.
 	 */
-	public static function stage( array $ids, $reason = 'manual' ) {
+	public static function trash( array $ids, $reason = 'manual' ) {
 		$done = array();
 		foreach ( array_map( 'intval', $ids ) as $id ) {
 			$post = get_post( $id );
@@ -75,7 +78,7 @@ class Staging {
 	}
 
 	/**
-	 * Restore staged attachments to their previous status.
+	 * Restore trashed attachments to their previous status.
 	 *
 	 * @param int[] $ids Attachment ids.
 	 * @return int[] Ids actually restored.
@@ -107,14 +110,14 @@ class Staging {
 	}
 
 	/**
-	 * Permanently delete staged attachments (files + post). Only operates on
-	 * items already in the staged status — a live attachment can never be
-	 * purged without first being staged.
+	 * Permanently delete trashed attachments (files + post). Only operates on
+	 * items already in the trashed status — a live attachment can never be
+	 * deleted without first being moved to the trash.
 	 *
 	 * @param int[] $ids Attachment ids.
-	 * @return int[] Ids actually purged.
+	 * @return int[] Ids actually deleted.
 	 */
-	public static function purge( array $ids ) {
+	public static function delete_permanently( array $ids ) {
 		$done = array();
 		foreach ( array_map( 'intval', $ids ) as $id ) {
 			$post = get_post( $id );
@@ -132,17 +135,17 @@ class Staging {
 	}
 
 	/**
-	 * Number of currently staged attachments.
+	 * Number of attachments currently in the trash.
 	 *
 	 * @return int
 	 */
-	public static function count_staged() {
+	public static function count_trashed() {
 		$counts = wp_count_posts( 'attachment' );
 		return isset( $counts->{self::STATUS} ) ? (int) $counts->{self::STATUS} : 0;
 	}
 
 	/**
-	 * Remove all staging metadata from an attachment.
+	 * Remove all trash metadata from an attachment.
 	 *
 	 * @param int $id Attachment id.
 	 */

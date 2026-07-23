@@ -8,7 +8,7 @@
 namespace UsedMediaPro\Admin;
 
 use UsedMediaPro\Usage_Index;
-use UsedMediaPro\Staging;
+use UsedMediaPro\Trash;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -47,12 +47,12 @@ class Admin_Menu {
 			array( $this, 'render_page' )
 		);
 
-		// Process stage/restore/purge before any output so we can redirect.
+		// Process trash/restore/purge before any output so we can redirect.
 		add_action( 'load-' . $this->hook, array( $this, 'handle_actions' ) );
 	}
 
 	/**
-	 * Handle stage / restore / purge actions (bulk and per-row) on page load,
+	 * Handle trash / restore / purge actions (bulk and per-row) on page load,
 	 * then redirect back with a result notice. Runs before headers are sent.
 	 */
 	public function handle_actions() {
@@ -73,7 +73,7 @@ class Admin_Menu {
 				break;
 			}
 		}
-		if ( ! in_array( $action, array( 'stage', 'restore', 'purge' ), true ) ) {
+		if ( ! in_array( $action, array( 'trash', 'restore', 'purge' ), true ) ) {
 			return;
 		}
 
@@ -94,21 +94,21 @@ class Admin_Menu {
 
 		// Verify the matching nonce: list-table bulk nonce, or per-row nonce.
 		if ( $is_bulk ) {
-			$plural = 'stage' === $action ? 'attachments' : 'staged';
+			$plural = 'trash' === $action ? 'attachments' : 'trashed';
 			check_admin_referer( 'bulk-' . $plural );
 		} else {
 			check_admin_referer( 'umedia-' . $action . '-' . $ids[0] );
 		}
 
 		switch ( $action ) {
-			case 'stage':
-				$count = count( Staging::stage( $ids, 'manual' ) );
+			case 'trash':
+				$count = count( Trash::trash( $ids, 'manual' ) );
 				break;
 			case 'restore':
-				$count = count( Staging::restore( $ids ) );
+				$count = count( Trash::restore( $ids ) );
 				break;
 			case 'purge':
-				$purged = Staging::purge( $ids );
+				$purged = Trash::delete_permanently( $ids );
 				Usage_Index::delete_for_attachments( $purged );
 				$count = count( $purged );
 				break;
@@ -161,14 +161,14 @@ class Admin_Menu {
 		}
 
 		// Read-only tab selector from the page URL; navigation only, so no nonce.
-		$tab       = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'library'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$staged    = Staging::count_staged();
-		$staging_l = $staged
-			? sprintf( /* translators: %d: number of staged items. */ __( 'Staging (%d)', 'used-media-pro' ), $staged )
-			: __( 'Staging', 'used-media-pro' );
-		$tabs      = array(
+		$tab     = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'library'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$trashed = Trash::count_trashed();
+		$trash_l = $trashed
+			? sprintf( /* translators: %d: number of trashed items. */ __( 'Trash (%d)', 'used-media-pro' ), $trashed )
+			: __( 'Trash', 'used-media-pro' );
+		$tabs    = array(
 			'library'  => __( 'Library', 'used-media-pro' ),
-			'staging'  => $staging_l,
+			'trash'    => $trash_l,
 			'settings' => __( 'Settings', 'used-media-pro' ),
 		);
 		if ( ! isset( $tabs[ $tab ] ) ) {
@@ -196,8 +196,8 @@ class Admin_Menu {
 
 		if ( 'settings' === $tab ) {
 			Settings::render();
-		} elseif ( 'staging' === $tab ) {
-			$this->render_staging_tab();
+		} elseif ( 'trash' === $tab ) {
+			$this->render_trash_tab();
 		} else {
 			$this->render_library_tab();
 		}
@@ -206,7 +206,7 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Show a success notice after a stage/restore/purge redirect.
+	 * Show a success notice after a trash/restore/purge redirect.
 	 */
 	private function render_action_notice() {
 		// Read-only result flags from our own redirect; no state change, so no nonce.
@@ -219,9 +219,9 @@ class Admin_Menu {
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		switch ( $done ) {
-			case 'stage':
+			case 'trash':
 				/* translators: %d: number of items. */
-				$message = sprintf( _n( '%d item moved to staging.', '%d items moved to staging.', $count, 'used-media-pro' ), $count );
+				$message = sprintf( _n( '%d item moved to the trash.', '%d items moved to the trash.', $count, 'used-media-pro' ), $count );
 				break;
 			case 'restore':
 				/* translators: %d: number of items. */
@@ -242,12 +242,12 @@ class Admin_Menu {
 	}
 
 	/**
-	 * Render the staging list table.
+	 * Render the trash list table.
 	 */
-	private function render_staging_tab() {
-		echo '<p class="description">' . esc_html__( 'These attachments are soft-deleted: the files and posts are intact and can be restored exactly. Nothing is removed from disk until you delete it permanently here.', 'used-media-pro' ) . '</p>';
+	private function render_trash_tab() {
+		echo '<p class="description">' . esc_html__( 'These attachments are in the trash: the files and posts are intact and can be restored exactly. Nothing is removed from disk until you delete it permanently here.', 'used-media-pro' ) . '</p>';
 
-		$table = new Staging_List_Table();
+		$table = new Trash_List_Table();
 		$table->prepare_items();
 
 		echo '<form method="post">';

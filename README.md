@@ -34,11 +34,11 @@ Third parties (and future modules) register adapters via the `ump_source_adapter
 | 0 | Scaffold, menu, settings, adapter registry ✅ |
 | 1 | Core adapter + usage index + enhanced list view with "Used in" ✅ |
 | 2 | Bricks adapter feeding the same index ✅ |
-| 3 | "No references found" cleanup + stage-and-restore delete + multi-select bulk delete ✅ |
+| 3 | "No references found" cleanup + trash-and-restore delete + multi-select bulk delete ✅ |
 | 4 | External image scan + download & **full re-attach** + undo |
 | 5 | Background-job progress, incremental index on `save_post`, polish |
 
-Design decisions locked in: **distributable** build with a trusted-domain allowlist, **stage-and-restore** deletes (nothing hard-deleted until you purge), and **full re-attach** on external-image replacement.
+Design decisions locked in: **distributable** build with a trusted-domain allowlist, **trash-and-restore** deletes (nothing hard-deleted until you purge), and **full re-attach** on external-image replacement.
 
 ## Install (development)
 

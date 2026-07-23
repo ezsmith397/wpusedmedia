@@ -16,18 +16,18 @@ global $wpdb;
 // change). Disable the WordPress.DB checks for the teardown section.
 // phpcs:disable WordPress.DB
 
-// Restore any attachments still staged for deletion back to their previous
-// status, so they don't get stranded in an unregistered status once the
-// plugin (which registers 'umedia_staged') is gone.
+// Restore any attachments still in the trash back to their previous status,
+// so they don't get stranded in an unregistered status once the plugin
+// (which registers 'umedia_trashed') is gone.
 $wpdb->query(
 	"UPDATE {$wpdb->posts} p
-	JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_umedia_prev_status'
+	JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_umedia_trash_prev_status'
 	SET p.post_status = m.meta_value
-	WHERE p.post_status = 'umedia_staged'"
+	WHERE p.post_status = 'umedia_trashed'"
 );
-// Any left in the staged status without prev-status meta fall back to inherit.
-$wpdb->query( "UPDATE {$wpdb->posts} SET post_status = 'inherit' WHERE post_type = 'attachment' AND post_status = 'umedia_staged'" );
-foreach ( array( '_umedia_prev_status', '_umedia_staged_at', '_umedia_staged_by', '_umedia_staged_reason' ) as $umedia_meta_key ) {
+// Any left in the trashed status without prev-status meta fall back to inherit.
+$wpdb->query( "UPDATE {$wpdb->posts} SET post_status = 'inherit' WHERE post_type = 'attachment' AND post_status = 'umedia_trashed'" );
+foreach ( array( '_umedia_trash_prev_status', '_umedia_trashed_at', '_umedia_trashed_by', '_umedia_trashed_reason' ) as $umedia_meta_key ) {
 	$wpdb->delete( $wpdb->postmeta, array( 'meta_key' => $umedia_meta_key ) );
 }
 

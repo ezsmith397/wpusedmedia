@@ -1,13 +1,13 @@
 <?php
 /**
- * Staging list table: attachments soft-deleted and awaiting restore or purge.
+ * Trash list table: attachments soft-deleted and awaiting restore or deletion.
  *
  * @package UsedMediaPro
  */
 
 namespace UsedMediaPro\Admin;
 
-use UsedMediaPro\Staging;
+use UsedMediaPro\Trash;
 use WP_List_Table;
 use WP_Query;
 
@@ -20,9 +20,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 }
 
 /**
- * Lists staged attachments with restore and permanent-delete actions.
+ * Lists trashed attachments with restore and permanent-delete actions.
  */
-class Staging_List_Table extends WP_List_Table {
+class Trash_List_Table extends WP_List_Table {
 
 	/**
 	 * Constructor.
@@ -30,8 +30,8 @@ class Staging_List_Table extends WP_List_Table {
 	public function __construct() {
 		parent::__construct(
 			array(
-				'singular' => 'staged_item',
-				'plural'   => 'staged',
+				'singular' => 'trashed_item',
+				'plural'   => 'trashed',
 				'ajax'     => false,
 			)
 		);
@@ -44,12 +44,12 @@ class Staging_List_Table extends WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
-			'cb'        => '<input type="checkbox" />',
-			'thumb'     => __( 'Preview', 'used-media-pro' ),
-			'title'     => __( 'File', 'used-media-pro' ),
-			'staged_at' => __( 'Staged', 'used-media-pro' ),
-			'staged_by' => __( 'By', 'used-media-pro' ),
-			'filesize'  => __( 'Size', 'used-media-pro' ),
+			'cb'         => '<input type="checkbox" />',
+			'thumb'      => __( 'Preview', 'used-media-pro' ),
+			'title'      => __( 'File', 'used-media-pro' ),
+			'trashed_at' => __( 'Trashed', 'used-media-pro' ),
+			'trashed_by' => __( 'By', 'used-media-pro' ),
+			'filesize'   => __( 'Size', 'used-media-pro' ),
 		);
 	}
 
@@ -75,7 +75,7 @@ class Staging_List_Table extends WP_List_Table {
 		$query = new WP_Query(
 			array(
 				'post_type'      => 'attachment',
-				'post_status'    => Staging::STATUS,
+				'post_status'    => Trash::STATUS,
 				'posts_per_page' => $per_page,
 				'paged'          => $paged,
 				'orderby'        => 'modified',
@@ -115,7 +115,7 @@ class Staging_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * File column with restore / purge row actions.
+	 * File column with restore / delete-permanently row actions.
 	 *
 	 * @param \WP_Post $item Attachment post.
 	 * @return string
@@ -126,8 +126,7 @@ class Staging_List_Table extends WP_List_Table {
 			$title = __( '(no title)', 'used-media-pro' );
 		}
 
-		$base = menu_page_url( 'used-media-pro', false );
-		$base = add_query_arg( 'tab', 'staging', $base );
+		$base = add_query_arg( 'tab', 'trash', menu_page_url( 'used-media-pro', false ) );
 
 		$restore_url = wp_nonce_url(
 			add_query_arg(
@@ -159,29 +158,29 @@ class Staging_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * When the item was staged.
+	 * When the item was trashed.
 	 *
 	 * @param \WP_Post $item Attachment post.
 	 * @return string
 	 */
-	public function column_staged_at( $item ) {
-		$at = get_post_meta( $item->ID, Staging::META_AT, true );
+	public function column_trashed_at( $item ) {
+		$at = get_post_meta( $item->ID, Trash::META_AT, true );
 		if ( ! $at ) {
 			return '&mdash;';
 		}
-		$reason = get_post_meta( $item->ID, Staging::META_REASON, true );
+		$reason = get_post_meta( $item->ID, Trash::META_REASON, true );
 		$label  = 'no_references' === $reason ? __( 'no references', 'used-media-pro' ) : __( 'manual', 'used-media-pro' );
 		return esc_html( $at ) . '<br><span class="ump-ctx">(' . esc_html( $label ) . ')</span>';
 	}
 
 	/**
-	 * Who staged the item.
+	 * Who trashed the item.
 	 *
 	 * @param \WP_Post $item Attachment post.
 	 * @return string
 	 */
-	public function column_staged_by( $item ) {
-		$uid  = (int) get_post_meta( $item->ID, Staging::META_BY, true );
+	public function column_trashed_by( $item ) {
+		$uid  = (int) get_post_meta( $item->ID, Trash::META_BY, true );
 		$user = $uid ? get_userdata( $uid ) : false;
 		return $user ? esc_html( $user->display_name ) : '&mdash;';
 	}
@@ -215,6 +214,6 @@ class Staging_List_Table extends WP_List_Table {
 	 * Empty-state message.
 	 */
 	public function no_items() {
-		esc_html_e( 'Nothing is staged. Items you move to staging from the Library tab appear here, where you can restore them or delete them permanently.', 'used-media-pro' );
+		esc_html_e( 'The trash is empty. Items you move to the trash from the Library tab appear here, where you can restore them or delete them permanently.', 'used-media-pro' );
 	}
 }

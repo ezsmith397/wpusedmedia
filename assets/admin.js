@@ -70,7 +70,7 @@
 		}
 	} );
 
-	// Confirm a bulk permanent delete on the staging form.
+	// Confirm a bulk permanent delete on the trash form.
 	$( document ).on( 'submit', 'form', function ( e ) {
 		var $form = $( this );
 		if ( ! $form.find( 'input[name="media[]"]' ).length ) {

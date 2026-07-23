@@ -49,7 +49,7 @@ class Plugin {
 		$this->registry = new Adapter_Registry();
 		$this->registry->boot();
 
-		add_action( 'init', array( Staging::class, 'register_status' ) );
+		add_action( 'init', array( Trash::class, 'register_status' ) );
 
 		if ( is_admin() ) {
 			( new Admin\Admin_Menu() )->hooks();

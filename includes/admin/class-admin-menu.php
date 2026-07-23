@@ -278,6 +278,17 @@ class Admin_Menu {
 		echo '</div>';
 
 		if ( $scanned ) {
+			$stats = External::stats();
+
+			echo '<div class="ump-ext-toolbar" style="margin:12px 0;">';
+			echo '<button type="button" class="button button-primary ump-import-selected">' . esc_html__( 'Import selected & re-attach', 'used-media-pro' ) . '</button> ';
+			echo '<span class="ump-bulk-status ump-ctx"></span>';
+			if ( ! empty( $stats['broken'] ) ) {
+				$csv = wp_nonce_url( admin_url( 'admin-post.php?action=umedia_export_broken' ), 'umedia_export_broken' );
+				echo ' <a href="' . esc_url( $csv ) . '" class="button" style="float:right;">' . esc_html__( 'Download broken report (CSV)', 'used-media-pro' ) . '</a>';
+			}
+			echo '</div>';
+
 			$table = new External_List_Table();
 			$table->prepare_items();
 			echo '<form method="get">';

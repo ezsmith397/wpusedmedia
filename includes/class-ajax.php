@@ -27,6 +27,43 @@ class Ajax {
 		add_action( 'wp_ajax_umedia_check_external', array( $this, 'check_external' ) );
 		add_action( 'wp_ajax_umedia_import_external', array( $this, 'import_external' ) );
 		add_action( 'wp_ajax_umedia_undo_external', array( $this, 'undo_external' ) );
+		add_action( 'admin_post_umedia_export_broken', array( $this, 'export_broken' ) );
+	}
+
+	/**
+	 * Stream a CSV report of every broken external reference, grouped by URL
+	 * and source post, as a work list for cleanup.
+	 */
+	public function export_broken() {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do this.', 'used-media-pro' ) );
+		}
+		check_admin_referer( 'umedia_export_broken' );
+
+		$rows = External::broken_report();
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="broken-external-images.csv"' );
+
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fputcsv( $out, array( 'external_url', 'reason', 'source', 'post_id', 'post_title', 'edit_url', 'context' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv
+		foreach ( $rows as $row ) {
+			fputcsv( // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv
+				$out,
+				array(
+					$row->url,
+					$row->message,
+					$row->source_id,
+					$row->object_id,
+					html_entity_decode( wp_strip_all_tags( get_the_title( $row->object_id ) ) ),
+					get_edit_post_link( $row->object_id, 'raw' ),
+					$row->context,
+				)
+			);
+		}
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		exit;
 	}
 
 	/**

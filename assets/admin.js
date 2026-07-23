@@ -135,6 +135,43 @@
 		} );
 	} );
 
+	// Bulk import: import every checked working URL sequentially.
+	$( document ).on( 'click', '.ump-import-selected', function ( e ) {
+		e.preventDefault();
+		var $btn = $( this );
+		var $status = $( '.ump-bulk-status' );
+		var hashes = $( 'input[name="ehash[]"]:checked' ).map( function () {
+			return this.value;
+		} ).get();
+		if ( ! hashes.length ) {
+			window.alert( 'Select one or more working images first (use the checkboxes).' );
+			return;
+		}
+		$btn.prop( 'disabled', true );
+		var total = hashes.length;
+		var done = 0;
+		function next() {
+			if ( ! hashes.length ) {
+				$status.text( 'Imported ' + done + ' / ' + total + '. Reloading…' );
+				setTimeout( function () {
+					window.location.reload();
+				}, 900 );
+				return;
+			}
+			var hash = hashes.shift();
+			done++;
+			$status.text( 'Importing ' + done + ' / ' + total + '…' );
+			$.post( UMP.ajaxUrl, {
+				action: 'umedia_import_external',
+				nonce: UMP.externalNonce,
+				hash: hash
+			} ).always( function () {
+				next();
+			} );
+		}
+		next();
+	} );
+
 	var PURGE_MSG =
 		'Permanently delete the selected file(s)? This removes them from disk and cannot be undone.';
 

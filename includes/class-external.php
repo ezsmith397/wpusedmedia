@@ -308,6 +308,36 @@ class External {
 	}
 
 	/**
+	 * Distinct object references for one external URL hash (for "where used").
+	 *
+	 * @param string $url_hash sha1 of the URL.
+	 * @return array<int,object> Rows with object_id, source_id, context.
+	 */
+	public static function references_for( $url_hash ) {
+		global $wpdb;
+		$table = self::table();
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DISTINCT object_id, source_id, context FROM {$table} WHERE url_hash = %s ORDER BY object_id ASC",
+				$url_hash
+			)
+		);
+	}
+
+	/**
+	 * All broken references, flattened for a report/export.
+	 *
+	 * @return array<int,object> Rows with url, message, source_id, object_id, context.
+	 */
+	public static function broken_report() {
+		global $wpdb;
+		$table = self::table();
+		return $wpdb->get_results(
+			"SELECT url, message, source_id, object_id, context FROM {$table} WHERE status = 'broken' ORDER BY url ASC, object_id ASC"
+		);
+	}
+
+	/**
 	 * Rows (object references) for one external URL hash.
 	 *
 	 * @param string $url_hash sha1 of the URL.

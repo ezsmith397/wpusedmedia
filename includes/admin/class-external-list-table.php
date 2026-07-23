@@ -44,12 +44,26 @@ class External_List_Table extends WP_List_Table {
 	 */
 	public function get_columns() {
 		return array(
+			'cb'      => '<input type="checkbox" />',
 			'preview' => __( 'Preview', 'used-media-pro' ),
 			'url'     => __( 'External URL', 'used-media-pro' ),
-			'refs'    => __( 'References', 'used-media-pro' ),
+			'refs'    => __( 'Used in', 'used-media-pro' ),
 			'status'  => __( 'Status', 'used-media-pro' ),
 			'actions' => __( 'Action', 'used-media-pro' ),
 		);
+	}
+
+	/**
+	 * Checkbox column — only importable (working) rows are selectable.
+	 *
+	 * @param object $item Grouped row.
+	 * @return string
+	 */
+	public function column_cb( $item ) {
+		if ( in_array( $item->status, array( 'ok', 'found', 'failed' ), true ) ) {
+			return sprintf( '<input type="checkbox" name="ehash[]" value="%s" />', esc_attr( $item->url_hash ) );
+		}
+		return '';
 	}
 
 	/**
@@ -142,7 +156,20 @@ class External_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	public function column_refs( $item ) {
-		return '<strong>' . (int) $item->refs . '</strong>';
+		$refs  = External::references_for( $item->url_hash );
+		$lines = array();
+		foreach ( $refs as $ref ) {
+			$title = get_the_title( $ref->object_id );
+			if ( '' === $title ) {
+				$title = '#' . (int) $ref->object_id;
+			}
+			$edit    = get_edit_post_link( $ref->object_id );
+			$label   = ( $edit ? '<a href="' . esc_url( $edit ) . '">' . esc_html( $title ) . '</a>' : esc_html( $title ) )
+				. ' <span class="ump-ctx">(' . esc_html( $ref->source_id ) . ')</span>';
+			$lines[] = $label;
+		}
+		return '<details><summary><strong>' . (int) $item->refs . '</strong></summary>'
+			. '<div class="ump-usage-list">' . implode( '<br>', $lines ) . '</div></details>';
 	}
 
 	/**

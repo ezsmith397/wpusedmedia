@@ -283,6 +283,7 @@ class Admin_Menu {
 			echo '<form method="get">';
 			echo '<input type="hidden" name="page" value="used-media-pro" />';
 			echo '<input type="hidden" name="tab" value="external" />';
+			$table->views();
 			$table->display();
 			echo '</form>';
 		}

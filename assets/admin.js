@@ -10,62 +10,76 @@
 		} );
 	}
 
-	function run( $btn, action ) {
-		var $progress = $btn.closest( '.ump-index-banner' ).find( '.ump-progress' );
-		if ( ! $progress.length ) {
-			$progress = $( '.ump-progress' );
+	function progressFor( $btn ) {
+		var $p = $btn.closest( '.ump-index-banner' ).find( '.ump-progress' );
+		if ( ! $p.length ) {
+			$p = $( '.ump-progress' );
 		}
-		var $bar = $progress.find( '.ump-progress-bar' );
-		var $text = $progress.find( '.ump-progress-text' );
+		return {
+			wrap: $p,
+			bar: $p.find( '.ump-progress-bar' ),
+			text: $p.find( '.ump-progress-text' )
+		};
+	}
 
-		$progress.show();
-		$btn.prop( 'disabled', true );
-		$text.text( 'Starting…' );
-
+	// Run one batched action to completion, calling whenDone() at the end.
+	function runBatches( action, ui, label, whenDone ) {
 		function loop( step ) {
 			post( action, step )
 				.done( function ( res ) {
 					if ( ! res || ! res.success ) {
-						$text.text( 'Error while building the index.' );
-						$btn.prop( 'disabled', false );
+						ui.text.text( 'Error: ' + label + '.' );
 						return;
 					}
-
 					var d = res.data;
-					var pct = d.total ? Math.round( ( d.processed / d.total ) * 100 ) : 100;
-					pct = Math.min( 100, pct );
-
-					$bar.css( 'width', pct + '%' );
-					$text.text( d.processed + ' / ' + d.total + ' objects scanned (' + pct + '%)' );
-
+					var pct = d.total ? Math.min( 100, Math.round( ( d.processed / d.total ) * 100 ) ) : 100;
+					ui.bar.css( 'width', pct + '%' );
+					ui.text.text( label + ': ' + d.processed + ' / ' + d.total + ' (' + pct + '%)' );
 					if ( d.done ) {
-						$bar.css( 'width', '100%' );
-						$text.text( 'Done — ' + d.processed + ' objects scanned. Reloading…' );
-						setTimeout( function () {
-							window.location.reload();
-						}, 800 );
+						whenDone();
 						return;
 					}
-
 					loop( 'continue' );
 				} )
 				.fail( function () {
-					$text.text( 'Request failed. Please try again.' );
-					$btn.prop( 'disabled', false );
+					ui.text.text( 'Request failed. Please try again.' );
 				} );
 		}
-
 		loop( 'start' );
+	}
+
+	function reloadSoon( ui ) {
+		ui.bar.css( 'width', '100%' );
+		ui.text.text( 'Done. Reloading…' );
+		setTimeout( function () {
+			window.location.reload();
+		}, 800 );
 	}
 
 	$( document ).on( 'click', '.ump-rebuild', function ( e ) {
 		e.preventDefault();
-		run( $( this ), 'umedia_rebuild_index' );
+		var $btn = $( this );
+		var ui = progressFor( $btn );
+		ui.wrap.show();
+		$btn.prop( 'disabled', true );
+		runBatches( 'umedia_rebuild_index', ui, 'Scanning content', function () {
+			reloadSoon( ui );
+		} );
 	} );
 
+	// Scan for external images, then chain into the availability health check.
 	$( document ).on( 'click', '.ump-extscan', function ( e ) {
 		e.preventDefault();
-		run( $( this ), 'umedia_scan_external' );
+		var $btn = $( this );
+		var ui = progressFor( $btn );
+		ui.wrap.show();
+		$btn.prop( 'disabled', true );
+		runBatches( 'umedia_scan_external', ui, 'Scanning content', function () {
+			ui.bar.css( 'width', '0%' );
+			runBatches( 'umedia_check_external', ui, 'Checking availability', function () {
+				reloadSoon( ui );
+			} );
+		} );
 	} );
 
 	// Import one external URL (download + re-attach references).

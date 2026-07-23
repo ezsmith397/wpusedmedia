@@ -205,14 +205,23 @@ class Bricks_Adapter implements Source_Adapter {
 	}
 
 	/**
-	 * Recursively collect 'url' values from Bricks image objects.
+	 * Recursively collect 'url' values from Bricks image objects only.
+	 *
+	 * A Bricks image object carries image-shaped sibling keys (id / filename /
+	 * full / sizes / external). Requiring one of those — or an image file
+	 * extension — avoids collecting plain link/button URLs, which also use a
+	 * 'url' key but are not images.
 	 *
 	 * @param array    $data Bricks data.
 	 * @param string[] $urls Collected URLs, by reference.
 	 */
 	private function collect_urls( array $data, array &$urls ) {
 		if ( isset( $data['url'] ) && is_string( $data['url'] ) ) {
-			$urls[] = $data['url'];
+			$image_shaped = isset( $data['id'] ) || isset( $data['filename'] ) || isset( $data['full'] ) || isset( $data['sizes'] ) || isset( $data['external'] );
+			$image_ext    = (bool) preg_match( '/\.(jpe?g|png|gif|webp|svg|bmp|tiff?|avif)(\?|$)/i', $data['url'] );
+			if ( $image_shaped || $image_ext ) {
+				$urls[] = $data['url'];
+			}
 		}
 		foreach ( $data as $value ) {
 			if ( is_array( $value ) ) {

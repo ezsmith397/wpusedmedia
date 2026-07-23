@@ -24,6 +24,7 @@ class Ajax {
 	public function hooks() {
 		add_action( 'wp_ajax_umedia_rebuild_index', array( $this, 'rebuild_index' ) );
 		add_action( 'wp_ajax_umedia_scan_external', array( $this, 'scan_external' ) );
+		add_action( 'wp_ajax_umedia_check_external', array( $this, 'check_external' ) );
 		add_action( 'wp_ajax_umedia_import_external', array( $this, 'import_external' ) );
 		add_action( 'wp_ajax_umedia_undo_external', array( $this, 'undo_external' ) );
 	}
@@ -197,6 +198,50 @@ class Ajax {
 	private function finish_external() {
 		update_option( 'umedia_external_scanned', 1 );
 		delete_option( 'umedia_extscan_state' );
+	}
+
+	/**
+	 * Health-check found external URLs a few per request (network-bound), so a
+	 * broken image is flagged and never offered for import.
+	 */
+	public function check_external() {
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( array( 'message' => 'forbidden' ), 403 );
+		}
+		check_ajax_referer( 'umedia_rebuild', 'nonce' );
+
+		$per_page = 8;
+		$step     = isset( $_POST['step'] ) ? sanitize_key( wp_unslash( $_POST['step'] ) ) : 'continue';
+		$state    = get_option( 'umedia_extcheck_state' );
+
+		if ( 'start' === $step || ! is_array( $state ) ) {
+			$state = array(
+				'total'     => External::unchecked_count(),
+				'processed' => 0,
+			);
+		}
+
+		$batch = External::fetch_unchecked( $per_page );
+		foreach ( $batch as $row ) {
+			$result = External::check_url( $row->url );
+			External::set_status( $row->url_hash, $result['ok'] ? 'ok' : 'broken', $result['reason'] );
+			++$state['processed'];
+		}
+
+		$done = count( $batch ) < $per_page;
+		if ( $done ) {
+			delete_option( 'umedia_extcheck_state' );
+		} else {
+			update_option( 'umedia_extcheck_state', $state, false );
+		}
+
+		wp_send_json_success(
+			array(
+				'processed' => (int) $state['processed'],
+				'total'     => (int) $state['total'],
+				'done'      => $done,
+			)
+		);
 	}
 
 	/**

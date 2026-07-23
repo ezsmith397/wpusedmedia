@@ -36,6 +36,7 @@ $umedia_options = array(
 	'umedia_rebuild_state',
 	'umedia_external_scanned',
 	'umedia_extscan_state',
+	'umedia_extcheck_state',
 );
 foreach ( $umedia_options as $umedia_option ) {
 	delete_option( $umedia_option );
